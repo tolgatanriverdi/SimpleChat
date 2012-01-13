@@ -7,7 +7,7 @@
 //
 
 #import "ChatThreadController.h"
-#import "XMPPMessageUserCoreDataObject.h"
+#import "XMPPMessageCoreDataObject.h"
 
 
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate>
