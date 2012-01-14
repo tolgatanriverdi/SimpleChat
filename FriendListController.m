@@ -236,6 +236,7 @@
         NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
         XMPPUserCoreDataStorageObject *user = [self.fetchedResultsController objectAtIndexPath:indexPath];
         [segue.destinationViewController setChatWith:user.jid];
+        [segue.destinationViewController setContext:self.context];
     }
 }
 

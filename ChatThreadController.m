@@ -12,6 +12,7 @@
 
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate>
 @property (nonatomic,strong) NSArray *messages;
+@property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @end
 
 @implementation ChatThreadController
@@ -31,8 +32,8 @@
             NSEntityDescription *entity = [NSEntityDescription entityForName:@"XMPPMessageCoreDataObject" inManagedObjectContext:self.context];
 
             NSFetchRequest *request = [[NSFetchRequest alloc] init];
-            NSPredicate *predicate = [NSPredicate predicateWithFormat:@"whoOwns = %@",[self.chatWith description]];
-            NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:YES];
+            NSPredicate *predicate = [NSPredicate predicateWithFormat:@"whoOwns.jidStr = %@",[self.chatWith description]];
+            NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:NO];
             NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
             [request setEntity:entity];
             [request setPredicate:predicate];

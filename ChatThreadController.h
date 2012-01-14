@@ -15,8 +15,6 @@
 @property (weak, nonatomic) IBOutlet UITextField *chatTextField;
 
 @property (nonatomic,assign) XMPPJID *chatWith;
-
-@property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @property (nonatomic,strong) NSManagedObjectContext *context;
 
 @end

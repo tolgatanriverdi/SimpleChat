@@ -282,10 +282,6 @@
 {
     NSDictionary *messageContent = [notification userInfo];
     [self sendMessage:[messageContent valueForKey:@"body"] toAdress:[messageContent valueForKey:@"to"] withType:[messageContent valueForKey:@"type"]];
-    
-    
-    XMPPJID *to = [messageContent valueForKey:@"to"];
-    //NSLog(@"Message Is Sending TO: %@ BODY: %@",to.description,[messageContent valueForKey:@"body"]);
 }
 
 
@@ -384,7 +380,7 @@
         
 
         
-        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime withType:@"chat" includingUserJid:[message fromStr] andUserDisplay:displayName inManagedObjectContext:self.getmanagedObjectMessage];
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime withType:@"chat" includingUserJid:[message fromStr] andUserDisplay:displayName inManagedObjectContext:self.getmanagedObjectMessage withSelfRepliedStatus:0];
         
         if (messageCoreData) {
            NSLog(@"Mesaj Eklendi Gonderen: %@ Body:%@",messageCoreData.whoOwns.displayName,body);         

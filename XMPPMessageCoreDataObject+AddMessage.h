@@ -9,5 +9,5 @@
 #import "XMPPMessageCoreDataObject.h"
 
 @interface XMPPMessageCoreDataObject (AddMessage)
-+(XMPPMessageCoreDataObject*) insertMessageWithBody:(NSString *)body andSendDate:(NSString *)sendDate withType:(NSString*)type includingUserJid:(NSString*)jidStr andUserDisplay:(NSString*)displayName inManagedObjectContext:(NSManagedObjectContext*)context;
++(XMPPMessageCoreDataObject*) insertMessageWithBody:(NSString *)body andSendDate:(NSString *)sendDate withType:(NSString*)type includingUserJid:(NSString*)jidStr andUserDisplay:(NSString*)displayName inManagedObjectContext:(NSManagedObjectContext*)context withSelfRepliedStatus:(NSNumber*)status;
 @end
