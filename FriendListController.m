@@ -21,6 +21,8 @@
 @synthesize fetchedResultsController = _fetchedResultsController;
 @synthesize context = _context;
 @synthesize friendsPresenceStatus = _friendsPresenceStatus;
+@synthesize chatThreadContext = _chatThreadContext;
+@synthesize selfID = _selfID;
 
 ////////Fetch ResultsController///////////////
 -(void) configure
@@ -235,8 +237,9 @@
     if (self.fetchedResultsController) {
         NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
         XMPPUserCoreDataStorageObject *user = [self.fetchedResultsController objectAtIndexPath:indexPath];
-        [segue.destinationViewController setChatWith:user.jid];
-        [segue.destinationViewController setContext:self.context];
+        [segue.destinationViewController setChatWith:[user.jid description]];
+        [segue.destinationViewController setContext:self.chatThreadContext];
+        [segue.destinationViewController setSelfID:self.selfID];
     }
 }
 

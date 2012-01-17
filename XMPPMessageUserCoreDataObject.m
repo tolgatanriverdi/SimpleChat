@@ -2,7 +2,7 @@
 //  XMPPMessageUserCoreDataObject.m
 //  SimpleChat
 //
-//  Created by ARGELA on 1/13/12.
+//  Created by ARGELA on 1/17/12.
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
 //
 
@@ -12,8 +12,8 @@
 
 @implementation XMPPMessageUserCoreDataObject
 
-@dynamic jidStr;
 @dynamic displayName;
+@dynamic jidStr;
 @dynamic messages;
 
 @end

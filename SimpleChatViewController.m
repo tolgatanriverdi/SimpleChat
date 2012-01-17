@@ -153,6 +153,8 @@
             self.friendListTable = segue.destinationViewController;
         }
         [segue.destinationViewController setContext:[self.xmppHandler getManagedObjectRoster]];
+        [segue.destinationViewController setChatThreadContext:[self.xmppHandler getmanagedObjectMessage]];
+        [segue.destinationViewController setSelfID:[self.username text]];
     }
 }
 

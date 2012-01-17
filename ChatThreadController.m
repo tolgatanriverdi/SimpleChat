@@ -11,7 +11,6 @@
 
 
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate>
-@property (nonatomic,strong) NSArray *messages;
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @end
 
@@ -22,7 +21,7 @@
 @synthesize chatWith = _chatWith;
 @synthesize fetchedResultsController = _fetchedResultsController;
 @synthesize context = _context;
-@synthesize messages = _messages;
+@synthesize selfID = _selfID;
 
 
 -(void) configure
@@ -31,26 +30,26 @@
         if (self.context) {
             NSEntityDescription *entity = [NSEntityDescription entityForName:@"XMPPMessageCoreDataObject" inManagedObjectContext:self.context];
 
-            NSFetchRequest *request = [[NSFetchRequest alloc] init];
-            NSPredicate *predicate = [NSPredicate predicateWithFormat:@"whoOwns.jidStr = %@",[self.chatWith description]];
-            NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:NO];
-            NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
-            [request setEntity:entity];
-            [request setPredicate:predicate];
-            [request setSortDescriptors:sortDescriptors];
-            
-            self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:self.context sectionNameKeyPath:@"type" cacheName:nil];
-            
-            [self.fetchedResultsController setDelegate:self];
-         
-            NSError *fetchError;
-            NSArray *matches = [self.context executeFetchRequest:request error:&fetchError];
-            
-            
-            if ([matches count] > 0) {
-                self.messages = matches;
+            if (entity) {
+                NSFetchRequest *request = [[NSFetchRequest alloc] init];
+                NSPredicate *predicate = [NSPredicate predicateWithFormat:@"whoOwns.jidStr = %@ AND messageReceipant=%@",self.chatWith,self.selfID];
+                NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:NO];
+                NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
+                [request setEntity:entity];
+                [request setPredicate:predicate];
+                [request setSortDescriptors:sortDescriptors];
+                
+                self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:self.context sectionNameKeyPath:@"whoOwns.jidStr" cacheName:nil];
+                
+                [self.fetchedResultsController setDelegate:self];
+                
+                NSError *fetchError;
+                if ([self.fetchedResultsController performFetch:&fetchError])
+                {
+                    NSLog(@"Sorgu Hatasi: %@",[fetchError description]);
+                }
             }
-            
+
         }
     }
 }
@@ -75,13 +74,8 @@
 
 -(void) controllerDidChangeContent:(NSFetchedResultsController *)controller
 {
-    NSError *fetchError;
-    NSArray *matches = [self.context executeFetchRequest:controller.fetchRequest error:&fetchError];
-    
-    
-    if ([matches count] > 0) {
-        self.messages = matches;
-    }
+    //NSLog(@"Tabloo Degisti");
+    [self.chatTable reloadData];
 }
 
 #pragma mark - View lifecycle
@@ -184,15 +178,19 @@
 
 -(NSInteger) numberOfSectionsInTableView:(UITableView *)tableView
 {
+    NSLog(@"Sections Count: %d",[[self.fetchedResultsController sections] count]);
     return 1;
 }
 
 -(NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-    if (self.messages) {
-        return [self.messages count];
+	NSArray *sections = [[self fetchedResultsController] sections];
+	
+    if ([sections count]) {
+        id <NSFetchedResultsSectionInfo> sectionInfo = [sections objectAtIndex:0];
+        return sectionInfo.numberOfObjects;    
     }
-    
+
     return 0;
 }
 
@@ -208,8 +206,10 @@
                                       reuseIdentifier:CellIdentifier];
 	}
     
-    if ([self.messages count] > 0) {
-        XMPPMessageCoreDataObject *messageObj = [self.messages objectAtIndex:indexPath.row];
+    
+    
+    XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    if (messageObj) {
         cell.textLabel.text = messageObj.body;
     }
     

@@ -2,8 +2,9 @@
 <model name="" userDefinedModelVersionIdentifier="" type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="878" systemVersion="11C74" minimumToolsVersion="Automatic" macOSVersion="Automatic" iOSVersion="Automatic">
     <entity name="XMPPMessageCoreDataObject" representedClassName="XMPPMessageCoreDataObject" syncable="YES">
         <attribute name="body" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="messageReceipant" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="selfReplied" optional="YES" attributeType="Boolean" syncable="YES"/>
-        <attribute name="sendDate" optional="YES" attributeType="Date" syncable="YES"/>
+        <attribute name="sendDate" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="type" optional="YES" attributeType="String" syncable="YES"/>
         <relationship name="whoOwns" optional="YES" minCount="1" maxCount="1" deletionRule="Nullify" destinationEntity="XMPPMessageUserCoreDataObject" inverseName="messages" inverseEntity="XMPPMessageUserCoreDataObject" syncable="YES"/>
     </entity>
@@ -13,7 +14,7 @@
         <relationship name="messages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="XMPPMessageCoreDataObject" inverseName="whoOwns" inverseEntity="XMPPMessageCoreDataObject" syncable="YES"/>
     </entity>
     <elements>
-        <element name="XMPPMessageCoreDataObject" positionX="160" positionY="192" width="128" height="120"/>
+        <element name="XMPPMessageCoreDataObject" positionX="160" positionY="192" width="128" height="135"/>
         <element name="XMPPMessageUserCoreDataObject" positionX="-56" positionY="213" width="128" height="90"/>
     </elements>
 </model>

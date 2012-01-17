@@ -2,7 +2,7 @@
 //  XMPPMessageUserCoreDataObject.h
 //  SimpleChat
 //
-//  Created by ARGELA on 1/13/12.
+//  Created by ARGELA on 1/17/12.
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
 //
 
@@ -13,8 +13,8 @@
 
 @interface XMPPMessageUserCoreDataObject : NSManagedObject
 
-@property (nonatomic, retain) NSString * jidStr;
 @property (nonatomic, retain) NSString * displayName;
+@property (nonatomic, retain) NSString * jidStr;
 @property (nonatomic, retain) NSSet *messages;
 @end
 

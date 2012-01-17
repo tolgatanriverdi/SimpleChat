@@ -13,6 +13,9 @@
 @interface FriendListController : UITableViewController<NSFetchedResultsControllerDelegate>
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @property (nonatomic,strong) NSManagedObjectContext *context;
+@property (nonatomic,strong) NSManagedObjectContext *chatThreadContext;
+
+@property (nonatomic,assign) NSString* selfID;
 
 -(void) presenceStatusChanged:(XMPPJID*)jid withStatus:(NSString*)status;
 @end

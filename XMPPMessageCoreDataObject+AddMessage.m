@@ -11,18 +11,16 @@
 
 @implementation XMPPMessageCoreDataObject (AddMessage)
 
-+(XMPPMessageCoreDataObject *) insertMessageWithBody:(NSString *)body andSendDate:(NSString *)sendDate withType:(NSString *)type includingUserJid:(NSString *)jidStr andUserDisplay:(NSString *)displayName inManagedObjectContext:(NSManagedObjectContext *)context withSelfRepliedStatus:(NSNumber*)status
++(XMPPMessageCoreDataObject *) insertMessageWithBody:(NSString *)body andSendDate:(NSString *)sendDate andMessageReceipant:(NSString*)messageReceipant withType:(NSString *)type includingUserJid:(NSString *)jidStr andUserDisplay:(NSString *)displayName inManagedObjectContext:(NSManagedObjectContext *)context withSelfRepliedStatus:(NSNumber*)status
 {
-    
-    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-    NSDate *dateSent = [dateFormatter dateFromString:sendDate];
     
     XMPPMessageCoreDataObject *messageObj = [NSEntityDescription insertNewObjectForEntityForName:@"XMPPMessageCoreDataObject" inManagedObjectContext:context];
     
     messageObj.body = body;
     messageObj.type = @"chat";
-    messageObj.sendDate = dateSent;
+    messageObj.sendDate = sendDate;
     messageObj.selfReplied = status;
+    messageObj.messageReceipant = messageReceipant;
     messageObj.whoOwns = [XMPPMessageUserCoreDataObject messageUserWithJid:jidStr andDisplayName:displayName inManagedObjectContext:context]; 
     
     

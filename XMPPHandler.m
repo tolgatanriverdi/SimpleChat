@@ -136,10 +136,11 @@
         NSLog(@"Managed Document Olusturuluyor");
         NSArray *documentsDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
         NSString *documentsPath = [documentsDir objectAtIndex:0];
-        NSString *filePath = [documentsPath stringByAppendingPathComponent:@"messageDocument.mom"];
+        NSString *filePath = [documentsPath stringByAppendingPathComponent:@"messageDocument"];
         NSURL *fileUrl = [[NSURL alloc] initFileURLWithPath:filePath];
         
         self.messageDocument = [[UIManagedDocument alloc] initWithFileURL:fileUrl];
+        
         
         NSDictionary *optionsForStore = [NSDictionary dictionaryWithObjectsAndKeys: 
                                          
@@ -148,7 +149,16 @@
                                          [NSNumber numberWithBool:YES], NSInferMappingModelAutomaticallyOption, nil];
         
         [self.messageDocument setPersistentStoreOptions:optionsForStore];
+         
         
+        
+        //Dokuman daha onceden varsa siler
+        if ([[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
+            [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+        }
+        
+        
+        //Dokumani olusturur
         if (![[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
             [self.messageDocument saveToURL:self.messageDocument.fileURL forSaveOperation:UIDocumentSaveForCreating completionHandler:nil];
         }
@@ -156,7 +166,6 @@
     
     return self.messageDocument.managedObjectContext;
 }
-
 
 - (void)contextDidSave:(NSNotification *)notification
 {
@@ -267,10 +276,11 @@
 }
 
 
--(void) sendMessage:(NSString*)messageBody toAdress:(XMPPJID*)to withType:(NSString*)type
+-(void) sendMessage:(NSString*)messageBody toAdress:(NSString*)to withType:(NSString*)type
 {
+    XMPPJID *toJid = [XMPPJID jidWithString:to];
     NSDate *currentTime = [NSDate date];
-    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:to];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:toJid];
     [newMessage addBodyToMessage:messageBody];
     [newMessage addSendDateToMessage:currentTime];
     
@@ -359,6 +369,17 @@
 		NSString *displayName = [user displayName];
         NSString *sentTime = [[message elementForName:@"sendDate"] stringValue];
         
+        
+        //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
+        XMPPJID *receipantID = [message to];
+        NSString *fullReceipantID = [[receipantID user] stringByAppendingString:@"@"];
+        NSString *receipantStr = [fullReceipantID stringByAppendingString:[receipantID domain]];
+        
+        //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
+        XMPPJID *messageFrom = [message from];
+        NSString *fullJid = [[messageFrom user] stringByAppendingString:@"@"];
+        NSString *jidStr = [fullJid stringByAppendingString:[messageFrom domain]];
+        
 		if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateActive)
 		{
 			UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:displayName
@@ -380,10 +401,10 @@
         
 
         
-        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime withType:@"chat" includingUserJid:[message fromStr] andUserDisplay:displayName inManagedObjectContext:self.getmanagedObjectMessage withSelfRepliedStatus:0];
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:receipantStr withType:@"chat" includingUserJid:jidStr andUserDisplay:displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithBool:NO]];
         
         if (messageCoreData) {
-           NSLog(@"Mesaj Eklendi Gonderen: %@ Body:%@",messageCoreData.whoOwns.displayName,body);         
+           NSLog(@"Mesaj Eklendi Gonderen: %@ Body:%@ JID: %@",messageCoreData.whoOwns.displayName,body,messageCoreData.whoOwns.jidStr);         
         } else {
             NSLog(@"Mesaj Database E Eklenemedi");
         }
@@ -398,7 +419,31 @@
 {
     NSLog(@"Mesaj Basariyla Gonderildi");
     
-    XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message from] xmppStream:self.xmppStream managedObjectContext:[self getManagedObjectRoster]];
+    XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message to]
+                                                                  xmppStream:self.xmppStream
+                                                        managedObjectContext:[self getManagedObjectRoster]];
+    
+    
+    //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
+    //Burada receive messajin tersi uygulanir fromdaki kisi biz to daki kisi ise alicidir
+    XMPPJID *receivingID = [message to];
+    NSString *receiverName =[[receivingID user] stringByAppendingString:@"@"];
+    NSString *receiverStr = [receiverName stringByAppendingString:[receivingID domain]];
+    
+    
+    NSString *body = [[message elementForName:@"body"] stringValue];
+    NSString *sentTime = [[message elementForName:@"sendDate"] stringValue];
+    
+    XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithBool:YES]];
+    
+    
+    if (messageCoreData) {
+        NSLog(@"Gonderilen Mesaj DB ye Eklendi From: %@ To: %@",self.username,receiverStr);
+    }
+    else {
+        NSLog(@"Gonderilen Mesaj DB ye Eklenemedi");
+    }
+    
 }
 
 @end
