@@ -234,13 +234,16 @@
 
 -(void) prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
-    if (self.fetchedResultsController) {
-        NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
-        XMPPUserCoreDataStorageObject *user = [self.fetchedResultsController objectAtIndexPath:indexPath];
-        [segue.destinationViewController setChatWith:[user.jid description]];
-        [segue.destinationViewController setContext:self.chatThreadContext];
-        [segue.destinationViewController setSelfID:self.selfID];
+    if ([segue.destinationViewController respondsToSelector:@selector(setChatWith:)]) {
+        if (self.fetchedResultsController) {
+            NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
+            XMPPUserCoreDataStorageObject *user = [self.fetchedResultsController objectAtIndexPath:indexPath];
+            [segue.destinationViewController setChatWith:[user.jid description]];
+            [segue.destinationViewController setContext:self.chatThreadContext];
+            [segue.destinationViewController setSelfID:self.selfID];
+        }
     }
+
 }
 
 /*

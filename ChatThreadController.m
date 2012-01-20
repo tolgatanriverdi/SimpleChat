@@ -8,6 +8,7 @@
 
 #import "ChatThreadController.h"
 #import "XMPPMessageCoreDataObject.h"
+#import "chatMessageCell.h"
 
 
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate>
@@ -33,7 +34,7 @@
             if (entity) {
                 NSFetchRequest *request = [[NSFetchRequest alloc] init];
                 NSPredicate *predicate = [NSPredicate predicateWithFormat:@"whoOwns.jidStr = %@ AND messageReceipant=%@",self.chatWith,self.selfID];
-                NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:NO];
+                NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:YES];
                 NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
                 [request setEntity:entity];
                 [request setPredicate:predicate];
@@ -76,6 +77,9 @@
 {
     //NSLog(@"Tabloo Degisti");
     [self.chatTable reloadData];
+    
+    NSIndexPath *lastIndex = [NSIndexPath indexPathForRow:[self.chatTable numberOfRowsInSection:0]-1 inSection:0];
+    [self.chatTable scrollToRowAtIndexPath:lastIndex atScrollPosition:UITableViewScrollPositionBottom animated:YES];
 }
 
 #pragma mark - View lifecycle
@@ -92,8 +96,9 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    [self.chatTable setDelegate:self];
-    [self.chatTable setDataSource:self];
+
+    //[self.chatTable setDelegate:self];
+    //[self.chatTable setDataSource:self];
     
     [self configure];
 }
@@ -138,10 +143,21 @@
 	[UIView beginAnimations:nil context:NULL];
 	[UIView setAnimationDuration:0.3];
 	
+    /*
 	CGRect frame = self.keyboardToolbar.frame;
 	frame.origin.y = self.view.frame.size.height - 260.0;
 	self.keyboardToolbar.frame = frame;
-	
+    
+    CGRect chatFrame = self.chatTable.frame;
+    chatFrame.size.height = self.chatTable.frame.size.height - 260.0;
+    self.chatTable.frame = chatFrame;
+     */
+    
+    self.keyboardToolbar.frame = CGRectMake(0, 156, 320, 44);
+	self.chatTable.frame = CGRectMake(0, 0, 320, 156);	
+    
+    //[self.chatTable setContentSize:CGSizeMake(self.chatTable.contentSize.width, self.chatTable.contentSize.height-260.0)];
+    
 	[UIView commitAnimations];
 }
 
@@ -149,9 +165,18 @@
 	[UIView beginAnimations:nil context:NULL];
 	[UIView setAnimationDuration:0.3];
 	
+    /*
 	CGRect frame = self.keyboardToolbar.frame;
 	frame.origin.y = self.view.frame.size.height;
 	self.keyboardToolbar.frame = frame;
+    
+    CGRect chatFrame = self.chatTable.frame;
+    chatFrame.size.height = self.view.frame.size.height;
+    self.chatTable.frame = chatFrame;
+     */
+    
+    self.keyboardToolbar.frame = CGRectMake(0, 372, 320, 44);
+	self.chatTable.frame = CGRectMake(0, 0, 320, 372);
 	
 	[UIView commitAnimations];
 }
@@ -198,23 +223,64 @@
 -(UITableViewCell*) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     static NSString *CellIdentifier = @"messageCell";
-	
+    
+    /*
 	UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
 	if (cell == nil)
 	{
 		cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
                                       reuseIdentifier:CellIdentifier];
+        
 	}
     
     
-    
     XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    
     if (messageObj) {
         cell.textLabel.text = messageObj.body;
+        if (messageObj.selfReplied == [NSNumber numberWithInt:1]) {
+            cell.textLabel.textAlignment = UITextAlignmentRight;
+        } else {
+            cell.textLabel.textAlignment = UITextAlignmentLeft;
+        }
+        
     }
+     
+     */
+    
+    
+     
+    chatMessageCell *cell = (chatMessageCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+	if (cell == nil)
+	{
+        /*
+		cell = [[chatMessageCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                      reuseIdentifier:CellIdentifier];
+         */
+        NSArray* topLevelObj = [[NSBundle mainBundle] loadNibNamed:@"messageCell" owner:nil options:nil];
+        
+        for (id currentObject in topLevelObj) {
+            if ([currentObject isKindOfClass:[UITableViewCell class]]) {
+                cell = (chatMessageCell *) currentObject;
+                break;
+            }
+        }
+        
+	}
+    
+    
+    XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    [cell setMessage:messageObj];
     
     return cell;
 }
+
+
+-(CGFloat) tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return [chatMessageCell sizeForMessage:[self.fetchedResultsController objectAtIndexPath:indexPath]];
+}
+ 
 
 
 @end

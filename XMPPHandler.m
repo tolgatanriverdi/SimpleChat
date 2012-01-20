@@ -401,14 +401,13 @@
         
 
         
-        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:receipantStr withType:@"chat" includingUserJid:jidStr andUserDisplay:displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithBool:NO]];
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:receipantStr withType:@"chat" includingUserJid:jidStr andUserDisplay:displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
         
-        if (messageCoreData) {
-           NSLog(@"Mesaj Eklendi Gonderen: %@ Body:%@ JID: %@",messageCoreData.whoOwns.displayName,body,messageCoreData.whoOwns.jidStr);         
-        } else {
-            NSLog(@"Mesaj Database E Eklenemedi");
+      
+        
+        if (!messageCoreData) {
+            NSLog(@"Gelen Mesaj DB ye Eklenemedi");
         }
-
         
 	}
     
@@ -434,14 +433,11 @@
     NSString *body = [[message elementForName:@"body"] stringValue];
     NSString *sentTime = [[message elementForName:@"sendDate"] stringValue];
     
-    XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithBool:YES]];
+    XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
     
     
-    if (messageCoreData) {
-        NSLog(@"Gonderilen Mesaj DB ye Eklendi From: %@ To: %@",self.username,receiverStr);
-    }
-    else {
-        NSLog(@"Gonderilen Mesaj DB ye Eklenemedi");
+    if (!messageCoreData) {
+        NSLog(@"Gonderilen Mesaj DB Ye Eklenemedi");
     }
     
 }
