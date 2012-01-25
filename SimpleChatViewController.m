@@ -66,7 +66,8 @@
         [DDLog addLogger:[DDTTYLogger sharedInstance]];
         
         // Setup the XMPP stream
-    NSString *hostName = @"192.168.12.30";
+    //NSString *hostName = @"192.168.12.30";
+    NSString *hostName = @"107.21.110.228";
     NSString *latestPath = [@"@" stringByAppendingString:hostName];
     NSString *fullUName = [self.username.text stringByAppendingString:latestPath];
     [self.username setText:fullUName];

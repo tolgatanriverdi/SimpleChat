@@ -30,6 +30,7 @@
 -(void) configure;
 -(void) connect;
 -(void) disconnect;
+-(void) transferFile:(NSString*)filePath toUser:(XMPPJID*)userJid;
 
 
 - (NSManagedObjectContext *)getManagedObjectRoster;

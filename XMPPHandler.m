@@ -13,6 +13,9 @@
 #import "XMPPMessageCoreDataObject+AddMessage.h"
 #import "XMPPMessageUserCoreDataObject+Update.h"
 
+#import "FtpHandler.h"
+
+
 @interface XMPPHandler()
 
 
@@ -26,6 +29,9 @@
 @property (nonatomic,strong)NSManagedObjectContext *managedObjectContext_roster;
 @property (nonatomic,strong) NSManagedObjectContext *managedObjectContext_capabilities;
 @property (nonatomic,strong) UIManagedDocument *messageDocument;
+
+@property (nonatomic,strong) NSString *sendingFilePath;
+@property (nonatomic,strong) FtpHandler *ftpHandler;
 
 @end
 
@@ -52,6 +58,10 @@
 @synthesize managedObjectContext_roster = _managedObjectContext_roster;
 @synthesize managedObjectContext_capabilities = _managedObjectContext_capabilities;
 @synthesize messageDocument = _messageDocument;
+
+@synthesize sendingFilePath = _sendingFilePath;
+
+@synthesize ftpHandler = _ftpHandler;
 
 -(void) setupStream
 {
@@ -96,13 +106,14 @@
     [self.xmppStream addDelegate:self delegateQueue:dispatch_get_main_queue()];
     [self.xmppRoster addDelegate:self delegateQueue:dispatch_get_main_queue()];
     
-    self.allowSelfSignedCertificates = NO;
-	self.allowSSLHostNameMismatch = NO;
+    self.allowSelfSignedCertificates = YES;
+	self.allowSSLHostNameMismatch = YES;
     
     [self getmanagedObjectMessage];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(goOnline) name:@"saveStatus" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(messageIsSending:) name:@"messageSent" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileIsSending:) name:@"fileSent" object:nil];
 }
 
 
@@ -225,6 +236,7 @@
 -(void) configure
 {
     [self setupStream];
+    self.ftpHandler = [[FtpHandler alloc] init];
 }
 
 -(void) connect
@@ -287,11 +299,24 @@
     [self.xmppStream sendElement:newMessage];
 }
 
+-(void) fileIsSending:(NSNotification*)notification
+{
+    NSDictionary *fileContent = [notification userInfo];
+    [self transferFile:[fileContent valueForKey:@"filePath"] toUser:[fileContent valueForKey:@"userJid"]];
+}
+
 
 -(void) messageIsSending:(NSNotification*)notification
 {
     NSDictionary *messageContent = [notification userInfo];
     [self sendMessage:[messageContent valueForKey:@"body"] toAdress:[messageContent valueForKey:@"to"] withType:[messageContent valueForKey:@"type"]];
+}
+
+-(void) transferFile:(NSString *)filePath toUser:(XMPPJID *)userJid
+{
+    NSLog(@"Transfering File ");
+    self.sendingFilePath = filePath;
+    [self.ftpHandler downloadFile:@"ftp://192.168.12.30/avat.jpg"];
 }
 
 
@@ -307,7 +332,7 @@
     NSError *error;
     if ([self.xmppStream authenticateWithPassword:self.password error:&error]) {
         NSLog(@"Authentication Basladi Uname: %@ Pass: %@ ",self.username,self.password);
-    }
+    } 
 }
 
 -(void)xmppStream:(XMPPStream *)sender didNotAuthenticate:(DDXMLElement *)error
@@ -323,6 +348,7 @@
 
 -(void)xmppStreamDidAuthenticate:(XMPPStream *)sender {
     NSLog(@"Authentication Basarili");
+    NSLog(@"ISConnection Secured %d",sender.isSecure);
     [self goOnline];
     [self.delegate setXMPPHandlerConnectionStatus:YES];
 }
@@ -412,6 +438,8 @@
 	}
     
     
+        NSLog(@"Message Received From: %@",[[message from] full]);
+    
 }
 
 -(void) xmppStream:(XMPPStream *)sender didSendMessage:(XMPPMessage *)message
@@ -439,7 +467,50 @@
     if (!messageCoreData) {
         NSLog(@"Gonderilen Mesaj DB Ye Eklenemedi");
     }
+}
+
+- (void)xmppStream:(XMPPStream *)sender willSecureWithSettings:(NSMutableDictionary *)settings
+{
+	//DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+	
+    NSLog(@"Secure Baglanti Kuruluyor");
     
+	if (self.allowSelfSignedCertificates)
+	{
+		[settings setObject:[NSNumber numberWithBool:YES] forKey:(NSString *)kCFStreamSSLAllowsAnyRoot];
+	}
+	
+	if (self.allowSSLHostNameMismatch)
+	{
+		[settings setObject:[NSNull null] forKey:(NSString *)kCFStreamSSLPeerName];
+	}
+	else
+	{
+		// Google does things incorrectly (does not conform to RFC).
+		// Because so many people ask questions about this (assume xmpp framework is broken),
+		// I've explicitly added code that shows how other xmpp clients "do the right thing"
+		// when connecting to a google server (gmail, or google apps for domains).
+		
+		NSString *expectedCertName = nil;
+		
+		NSString *serverDomain = self.xmppStream.hostName;
+		NSString *virtualDomain = [self.xmppStream.myJID domain];
+        
+		
+		if (serverDomain == nil)
+		{
+			expectedCertName = virtualDomain;
+		}
+		else
+		{
+			expectedCertName = serverDomain;
+		}
+		
+		if (expectedCertName)
+		{
+			[settings setObject:expectedCertName forKey:(NSString *)kCFStreamSSLPeerName];
+		}
+	}
 }
 
 @end

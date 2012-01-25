@@ -87,12 +87,12 @@
 -(void) presenceStatusChanged:(XMPPJID*)jid withStatus:(NSString *)status
 {
     //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
-    NSString *fullJid = [[jid user] stringByAppendingString:@"@"];
-    NSString *jidStr = [fullJid stringByAppendingString:[jid domain]];
+    //NSString *fullJid = [[jid user] stringByAppendingString:@"@"];
+    //NSString *jidStr = [fullJid stringByAppendingString:[jid domain]];
     
     
     //NSLog(@"PresentStatusChangedInTable: JID: %@ Status: %@",jidStr,status);
-    [self.friendsPresenceStatus setValue:status forKey:jidStr];
+    [self.friendsPresenceStatus setValue:status forKey:[jid bare]];
     //[self.tableView reloadData];
 }
 
@@ -211,11 +211,6 @@
     
         if (self.friendsPresenceStatus) {
             NSString *presenceStatus = [self.friendsPresenceStatus objectForKey:user.jidStr];
-            if (user.jidStr) {
-                //NSLog(@"TableLoad JID: %@",user.jidStr);   
-            }
-
-        
         
             if (presenceStatus) {
                 cell.detailTextLabel.text = presenceStatus;

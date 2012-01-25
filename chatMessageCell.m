@@ -28,7 +28,7 @@
 + (CGFloat)sizeForMessage:(XMPPMessageCoreDataObject *)message {
 	CGSize size = [message.body sizeWithFont:[UIFont systemFontOfSize:14.0] constrainedToSize:CGSizeMake(240.0, 480.0) lineBreakMode:UILineBreakModeWordWrap];
     
-    NSLog(@"Size For Message: %f Body: %@",size.height+15,message.body);
+    //NSLog(@"Size For Message: %f Body: %@",size.height+15,message.body);
     return size.height + 15;
 }
 
@@ -103,7 +103,7 @@
 
 - (void) setMessage:(XMPPMessageCoreDataObject *)message
 {
-    NSLog(@"SetMessageCell Geldii");
+    //NSLog(@"SetMessageCell Geldii");
     _message = message;
     //self.textLabel.text = self.message.body;
     [self updateFrames];

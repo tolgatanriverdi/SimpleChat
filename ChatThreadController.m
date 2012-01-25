@@ -253,10 +253,6 @@
     chatMessageCell *cell = (chatMessageCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
 	if (cell == nil)
 	{
-        /*
-		cell = [[chatMessageCell alloc] initWithStyle:UITableViewCellStyleDefault
-                                      reuseIdentifier:CellIdentifier];
-         */
         NSArray* topLevelObj = [[NSBundle mainBundle] loadNibNamed:@"messageCell" owner:nil options:nil];
         
         for (id currentObject in topLevelObj) {
@@ -280,7 +276,21 @@
 {
     return [chatMessageCell sizeForMessage:[self.fetchedResultsController objectAtIndexPath:indexPath]];
 }
+
+
  
+- (IBAction)fileSend:(id)sender 
+{
+    NSLog(@"Selecting Fileee");
+    //Burasi denemek icindir silinecek
+    NSString *fullFilePath = [[NSBundle mainBundle] pathForResource:@"avat" ofType:@"jpg"];
+    
+    NSArray *keys = [NSArray arrayWithObjects:@"filePath",@"userJid", nil];
+    NSArray *values = [NSArray arrayWithObjects:fullFilePath,self.chatWith, nil];
+    NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:values forKeys:keys];
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"fileSent" object:nil userInfo:fileContents];
+}
 
 
 @end
