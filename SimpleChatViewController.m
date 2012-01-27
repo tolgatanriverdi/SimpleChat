@@ -118,8 +118,6 @@
 }
 
 
-
-
 //////XMPP HANDLER DELEGATE METHODS////////
 
 -(void) setXMPPHandlerConnectionStatus:(BOOL)status

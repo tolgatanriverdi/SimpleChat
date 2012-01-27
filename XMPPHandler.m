@@ -316,7 +316,8 @@
 {
     NSLog(@"Transfering File ");
     self.sendingFilePath = filePath;
-    [self.ftpHandler downloadFile:@"ftp://192.168.12.30/avat.jpg"];
+    //[self.ftpHandler downloadFile:@"ftp://192.168.3.104/testdir/avat.jpg"];
+    [self.ftpHandler uploadFile:self.sendingFilePath withFolder:@"testdir"];
 }
 
 
