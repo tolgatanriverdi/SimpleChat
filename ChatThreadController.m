@@ -9,10 +9,13 @@
 #import "ChatThreadController.h"
 #import "XMPPMessageCoreDataObject.h"
 #import "chatMessageCell.h"
+#import "MediaHandler.h"
 
 
-@interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate>
+
+@interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate,UIActionSheetDelegate,MediaHandlerDelegate>
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
+@property (nonatomic,strong) MediaHandler *mediaHandler;
 @end
 
 @implementation ChatThreadController
@@ -23,6 +26,7 @@
 @synthesize fetchedResultsController = _fetchedResultsController;
 @synthesize context = _context;
 @synthesize selfID = _selfID;
+@synthesize mediaHandler = _mediaHandler;
 
 
 -(void) configure
@@ -99,6 +103,8 @@
 
     //[self.chatTable setDelegate:self];
     //[self.chatTable setDataSource:self];
+    _mediaHandler = [[MediaHandler alloc] init];
+    [_mediaHandler setDelegate:self];
     
     [self configure];
 }
@@ -278,19 +284,39 @@
 }
 
 
- 
-- (IBAction)fileSend:(id)sender 
+///ACTIONS
+////////////////////////////////////////
+- (IBAction)selectAction:(id)sender 
 {
-    NSLog(@"Selecting Fileee");
-    //Burasi denemek icindir silinecek
-    NSString *fullFilePath = [[NSBundle mainBundle] pathForResource:@"avat" ofType:@"jpg"];
+    UIActionSheet *popupQuery = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles:@"Take Photo or Video",@"Choose Existing",@"Audio Note",@"Share Contact", @"Share Location", nil];
+    popupQuery.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
+    [popupQuery showInView:self.view];
     
-    NSArray *keys = [NSArray arrayWithObjects:@"filePath",@"userJid", nil];
-    NSArray *values = [NSArray arrayWithObjects:fullFilePath,self.chatWith, nil];
-    NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:values forKeys:keys];
-    
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"fileSent" object:nil userInfo:fileContents];
 }
+
+
+-(void) actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    NSLog(@"Action SheetButton Index %d",buttonIndex);
+    if (buttonIndex == 0) {
+        [_mediaHandler takePhoto];
+    }
+}
+
+
+
+-(void) presentImagePickerController:(UINavigationController *)imagePicker
+{
+    [self presentModalViewController:imagePicker animated:YES];
+}
+
+
+-(void) dismissImagePicker
+{
+    [self dismissModalViewControllerAnimated:YES];
+}
+
+
 
 
 @end

@@ -14,8 +14,11 @@
 @property (weak, nonatomic) IBOutlet UIToolbar *keyboardToolbar;
 @property (weak, nonatomic) IBOutlet UITextField *chatTextField;
 
+
 @property (nonatomic,assign) NSString *chatWith;
 @property (nonatomic,assign) NSString *selfID;
 @property (nonatomic,strong) NSManagedObjectContext *context;
+
+
 
 @end
