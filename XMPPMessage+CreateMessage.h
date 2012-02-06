@@ -11,6 +11,8 @@
 @interface XMPPMessage (CreateMessage)
 
 -(void) addBodyToMessage:(NSString *)bodyMessage;
--(void) addSendDateToMessage:(NSDate*)sendDate;
+-(void) addThumbNailPath:(NSString*)path;
+-(void) addDataPath:(NSString*)path;
+
 
 @end

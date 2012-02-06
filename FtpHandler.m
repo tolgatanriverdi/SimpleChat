@@ -24,6 +24,8 @@
 //Download Icin Gerekli Olanlar
 @property (nonatomic,strong) NSInputStream *ftpReadStream;
 @property (nonatomic,strong) NSOutputStream *fileStream;
+@property (nonatomic,strong) NSString *downloadingFileName;
+@property (nonatomic,strong) NSString *downloadingRemoteFileName;
 
 
 //Upload Icin Gerekli Olanlar
@@ -36,6 +38,11 @@
 @property (nonatomic, readonly) uint8_t *   buffer;
 @property (nonatomic, assign)   size_t      bufferOffset;
 @property (nonatomic, assign)   size_t      bufferLimit;
+
+
+@property (nonatomic,strong) NSMutableArray *mediaUploadQueue;
+@property (nonatomic,strong) NSMutableArray *mediaDownloadQueue;
+@property (nonatomic,strong) NSMutableArray *remoteLocalFileNames;
 
 @end
 
@@ -51,9 +58,15 @@
 @synthesize ftpWriteFileStream = _ftpWriteFileStream;
 @synthesize uploadURLWithFolder = _uploadURLWithFolder;
 @synthesize uploadingFileName = _uploadingFileName;
+@synthesize downloadingFileName = _downloadingFileName;
+@synthesize downloadingRemoteFileName = _downloadingRemoteFileName;
 @synthesize buffer = _buffer;
 @synthesize bufferOffset = _bufferOffset;
 @synthesize bufferLimit = _bufferLimit;
+@synthesize delegate = _delegate;
+@synthesize mediaDownloadQueue = _mediaDownloadQueue;
+@synthesize mediaUploadQueue = _mediaUploadQueue;
+@synthesize remoteLocalFileNames = _remoteLocalFileNames;
 
 
 - (uint8_t *)buffer
@@ -70,57 +83,103 @@
 
     self.ftpUsername = @"ftpuser";
     self.ftpPass = @"ftp*123";
-    //self.ftpUploadHost = @"ftp://192.168.12.30";
-    self.ftpUploadHost = @"ftp://192.168.3.104";
+    self.ftpUploadHost = @"ftp://95.0.221.23";
+    //self.ftpUploadHost = @"ftp://192.168.3.104";
+    
+    
+    _mediaDownloadQueue = [[NSMutableArray alloc] init];
+    _mediaUploadQueue = [[NSMutableArray alloc] init];
+    _remoteLocalFileNames = [[NSMutableArray alloc] init];
     
     return self;
 }
 
-
-
-
--(void) downloadFile:(NSString *)fileUrl
+-(NSString*)getRemoteFileName:(NSString *)forLocalFile
 {
-    BOOL success;
-    //Indirilecek Dosya Icin URL Olusturur
-    NSURL *filePathUrl = [NSURL URLWithString:fileUrl];
-    //NSLog(@"Download Starting on %@",[filePathUrl description]);
-    
-    
-    NSString *fileName = [fileUrl lastPathComponent];
-    NSArray *documentsTmpPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsPath = [documentsTmpPath objectAtIndex:0];
-    NSString *outputFilePath = [documentsPath stringByAppendingPathComponent:fileName];
-    //NSLog(@"Download File To: %@",outputFilePath);
-    
-    if ([[NSFileManager defaultManager] fileExistsAtPath:outputFilePath]) {
-        [[NSFileManager defaultManager] removeItemAtPath:outputFilePath error:nil];
+    NSString *result;
+    for (int i=0;i<[_remoteLocalFileNames count];i++) {
+        NSDictionary *fileInfo = [_remoteLocalFileNames objectAtIndex:i];
+        if ([fileInfo objectForKey:forLocalFile]) {
+            result = [fileInfo objectForKey:forLocalFile];
+            [_remoteLocalFileNames removeObjectAtIndex:i];
+            break;
+        }
     }
     
-    _fileStream = [NSOutputStream outputStreamToFileAtPath:outputFilePath append:NO];
+    return result;
+}
 
-    if (self.fileStream) {
-        NSLog(@"File Stream Baslatiliyor");
-        [_fileStream open];
+
+
+-(void) downloadFile:(NSString *)fileUrl inFolder:(NSString *)folderName withType:(NSString *)type fromUser:(NSString *)userId
+{
+    
+    NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:fileUrl,@"fileName",folderName,@"folderName",type,@"type",userId,@"userName", nil];
+    [_mediaDownloadQueue addObject:dictionary];
+    
+    //Dictionary queue nin icindeki ilk objeyi upload etmek icin
+    NSDictionary *checkDict;
+    if ([_mediaDownloadQueue count] > 0) {
+        checkDict = [_mediaDownloadQueue objectAtIndex:0];
     }
     
-    
-    //Readstreami olusturur ve username password assign eder
-    CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL,(__bridge_retained CFURLRef) filePathUrl);
-    assert(readStream != NULL);
-    _ftpReadStream = objc_unretainedObject(readStream);
-    
-    success = [_ftpReadStream setProperty:self.ftpUsername forKey:(id) kCFStreamPropertyFTPUserName];
-    assert(success);
-    
-    success = [_ftpReadStream setProperty:self.ftpPass forKey:(id) kCFStreamPropertyFTPPassword];
-    assert(success);
-    
-    [_ftpReadStream setDelegate:self];
-    [_ftpReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [_ftpReadStream open];
-    CFRelease(readStream);
-    //NSLog(@"Download Waits For CallBack");
+    if ([[checkDict objectForKey:@"fileName"] isEqualToString:fileUrl]) 
+    {
+        _downloadingRemoteFileName = fileUrl;
+        BOOL success;
+        //Indirilecek Dosya Icin URL Olusturur
+        NSURL *filePathUrl = [NSURL URLWithString:fileUrl];
+        //NSLog(@"Download Starting on %@",[filePathUrl description]);
+        
+        
+        NSString *fileName = [fileUrl lastPathComponent];
+        NSArray *documentsTmpPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documentsPath = [documentsTmpPath objectAtIndex:0];
+        NSString *outputDirPath = [documentsPath stringByAppendingPathComponent:folderName];
+        //NSLog(@"Download File To: %@",outputFilePath);
+        
+        if (![[NSFileManager defaultManager] fileExistsAtPath:outputDirPath]) {
+            [[NSFileManager defaultManager] createDirectoryAtPath:outputDirPath withIntermediateDirectories:NO attributes:nil error:nil];
+        }
+        NSString *outputFilePath = [outputDirPath stringByAppendingPathComponent:fileName];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:outputFilePath]) {
+            [[NSFileManager defaultManager] removeItemAtPath:outputFilePath error:nil];
+        }
+        _downloadingFileName = outputFilePath;
+        
+        
+        //Bu dictionary indirilen local dosyaya karsilik gelen remote url i tutar
+        NSDictionary *remoteLocalDictionary = [NSDictionary dictionaryWithObjectsAndKeys:_downloadingRemoteFileName,_downloadingFileName, nil];
+        [_remoteLocalFileNames addObject:remoteLocalDictionary];
+        
+        
+        _fileStream = [NSOutputStream outputStreamToFileAtPath:outputFilePath append:NO];
+        
+        if (self.fileStream) {
+            NSLog(@"File Stream Baslatiliyor");
+            [_fileStream open];
+        }
+        
+        
+        //Readstreami olusturur ve username password assign eder
+        CFReadStreamRef readStream = CFReadStreamCreateWithFTPURL(NULL,(__bridge_retained CFURLRef) filePathUrl);
+        assert(readStream != NULL);
+        _ftpReadStream = objc_unretainedObject(readStream);
+        
+        success = [_ftpReadStream setProperty:self.ftpUsername forKey:(id) kCFStreamPropertyFTPUserName];
+        assert(success);
+        
+        success = [_ftpReadStream setProperty:self.ftpPass forKey:(id) kCFStreamPropertyFTPPassword];
+        assert(success);
+        
+        [_ftpReadStream setDelegate:self];
+        [_ftpReadStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+        [_ftpReadStream open];
+        CFRelease(readStream);
+        //NSLog(@"Download Waits For CallBack");
+        
+    }
+
     
 }
 
@@ -162,43 +221,60 @@
 }
 
 
--(void) uploadFile:(NSString*)fileName withFolder:(NSString *)folder
+-(void) uploadFile:(NSString*)fileName withFolder:(NSString *)folder withType:(NSString *)type toUser:(NSString*)userId
 {
-    _uploadingFileName = fileName;
-    NSURL *fullFtpURL = [NSURL URLWithString:self.ftpUploadHost];
-    BOOL success = (fullFtpURL != nil);
     
-    if (success) {
-        // Add the directory name to the end of the URL to form the final URL 
-        // that we're going to create.  CFURLCreateCopyAppendingPathComponent will 
-        // percent encode (as UTF-8) any wacking characters, which is the right thing 
-        // to do in the absence of application-specific knowledge about the encoding 
-        // expected by the server.
-        
-        fullFtpURL = (__bridge_transfer NSURL*) CFURLCreateCopyAppendingPathComponent(NULL,(__bridge_retained CFURLRef)fullFtpURL,(__bridge_retained CFStringRef) folder,true);
-        success = (fullFtpURL != nil);
-        _uploadURLWithFolder = fullFtpURL;
-        NSLog(@"URL for createdir: %@",[fullFtpURL description]);
+    NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:fileName,@"fileName",folder,@"folderName",type,@"type",userId,@"userName", nil];
+    [_mediaUploadQueue addObject:dictionary];
+    
+    //Dictionary queue nin icindeki ilk objeyi upload etmek icin
+    NSDictionary *checkDict;
+    if ([_mediaUploadQueue count] > 0) {
+        checkDict = [_mediaUploadQueue objectAtIndex:0];
     }
     
     
-    if (success) {
-        CFWriteStreamRef writeDirStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge_retained CFURLRef) fullFtpURL);
-        assert(writeDirStream != NULL);
-        _ftpCreateDirStream = objc_unretainedObject(writeDirStream);
-        
-        success = [_ftpCreateDirStream setProperty:self.ftpUsername forKey:(id) kCFStreamPropertyFTPUserName];
-        assert(success);
-        success = [_ftpCreateDirStream setProperty:self.ftpPass forKey:(id) kCFStreamPropertyFTPPassword];
-        assert(success);
-        
-        [_ftpCreateDirStream setDelegate:self];
-        [_ftpCreateDirStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-        [_ftpCreateDirStream open];
-        CFRelease(writeDirStream);
-    }
     
-    NSLog(@"Creating Directory On FtpServer");
+    if ([[checkDict objectForKey:@"fileName"] isEqualToString:fileName]) {
+        _uploadingFileName = fileName;
+        
+        NSURL *fullFtpURL = [NSURL URLWithString:self.ftpUploadHost];
+        BOOL success = (fullFtpURL != nil);
+        
+        if (success) {
+            // Add the directory name to the end of the URL to form the final URL 
+            // that we're going to create.  CFURLCreateCopyAppendingPathComponent will 
+            // percent encode (as UTF-8) any wacking characters, which is the right thing 
+            // to do in the absence of application-specific knowledge about the encoding 
+            // expected by the server.
+            
+            fullFtpURL = (__bridge_transfer NSURL*) CFURLCreateCopyAppendingPathComponent(NULL,(__bridge_retained CFURLRef)fullFtpURL,(__bridge_retained CFStringRef) folder,true);
+            success = (fullFtpURL != nil);
+            _uploadURLWithFolder = fullFtpURL;
+            NSLog(@"URL for createdir: %@",[fullFtpURL description]);
+        }
+        
+        
+        if (success) {
+            CFWriteStreamRef writeDirStream = CFWriteStreamCreateWithFTPURL(NULL, (__bridge_retained CFURLRef) fullFtpURL);
+            assert(writeDirStream != NULL);
+            _ftpCreateDirStream = objc_unretainedObject(writeDirStream);
+            
+            success = [_ftpCreateDirStream setProperty:self.ftpUsername forKey:(id) kCFStreamPropertyFTPUserName];
+            assert(success);
+            success = [_ftpCreateDirStream setProperty:self.ftpPass forKey:(id) kCFStreamPropertyFTPPassword];
+            assert(success);
+            
+            [_ftpCreateDirStream setDelegate:self];
+            [_ftpCreateDirStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+            [_ftpCreateDirStream open];
+            CFRelease(writeDirStream);
+        }
+        
+        NSLog(@"Creating Directory On FtpServer");
+        
+    }
+
 }
 
 //EVENT HANDLING
@@ -243,6 +319,87 @@
 }
 
 
+-(void) informDownloadingFileStatus:(BOOL) status
+{
+    if (_delegate) {
+        NSString *type;
+        NSString *username;
+        if ([_mediaDownloadQueue objectAtIndex:0]) {
+            type = [[_mediaDownloadQueue objectAtIndex:0] objectForKey:@"type"];
+            username = [[_mediaDownloadQueue objectAtIndex:0] objectForKey:@"userName"];
+        }
+        
+        
+        [_delegate ftpDownloadStatusChanged:status withFileName:self.downloadingFileName withType:type fromUser:username];
+    } 
+}
+
+-(void) informUploadingFileStatus:(BOOL) status
+{
+    if (_delegate) {
+        NSString *type;
+        NSString *username;
+        if ([_mediaUploadQueue objectAtIndex:0]) {
+            type = [[_mediaUploadQueue objectAtIndex:0] objectForKey:@"type"];
+            username = [[_mediaUploadQueue objectAtIndex:0] objectForKey:@"userName"];
+        }
+        [_delegate ftpUploadStatusChanged:status withLocalFileName:self.uploadingFileName andRemoteFileName:[self.uploadURLWithFolder description] andType:type toUser:username];
+    }
+}
+
+-(void) removeDownloadedObjectFromQueue
+{
+    if ([_mediaDownloadQueue count] > 0) {
+        NSDictionary *dictionary = [_mediaDownloadQueue objectAtIndex:0];
+        if ([[dictionary objectForKey:@"fileName"] isEqualToString:self.downloadingRemoteFileName]) {
+            NSLog(@"Removing Downloaded Object From Queue");
+            [_mediaDownloadQueue removeObjectAtIndex:0];
+        }
+    }
+    
+    //Bir onceki dosyanin transferi bittikten sonra diger dosyanin transferine baslanir
+    if ([_mediaDownloadQueue count] > 0) {
+        NSDictionary *dictionary = [_mediaDownloadQueue objectAtIndex:0];
+        if (dictionary) {
+            NSString *fileName = [dictionary objectForKey:@"fileName"];
+            NSString *folderName = [dictionary objectForKey:@"folderName"];
+            NSString *type = [dictionary objectForKey:@"type"];
+            NSString *fromUsername = [dictionary objectForKey:@"userName"];
+            [_mediaDownloadQueue removeObjectAtIndex:0];
+            [self downloadFile:fileName inFolder:folderName withType:type fromUser:fromUsername];
+        }
+    }
+}
+
+-(void) removeUploadedObjectFromQueue
+{
+    if ([_mediaUploadQueue count] > 0) {
+        NSDictionary *dictionary = [_mediaUploadQueue objectAtIndex:0];
+        if ([[dictionary objectForKey:@"fileName"] isEqualToString:self.uploadingFileName]) {
+            NSLog(@"Removing Uploaded Object From Queue");
+            [_mediaUploadQueue removeObjectAtIndex:0];
+        }
+    }
+    
+    //Bir onceki dosyanin transferi bittikten sonra diger dosyanin transferine baslanir
+    if ([_mediaUploadQueue count] > 0) {
+        NSLog(@"Transfering New File");
+        NSDictionary *dictionary = [_mediaUploadQueue objectAtIndex:0];        
+        if (dictionary) {
+            
+            NSString *fileName = [dictionary objectForKey:@"fileName"];
+            NSString *folderName = [dictionary objectForKey:@"folderName"];
+            NSString *type = [dictionary objectForKey:@"type"];
+            NSString *username = [dictionary objectForKey:@"userName"];
+            [_mediaUploadQueue removeObjectAtIndex:0];
+            [self uploadFile:fileName withFolder:folderName withType:type toUser:username];
+            NSLog(@"Transfering New File withFileName: %@ inFolder: %@",fileName,folderName);
+        }
+        
+    }
+}
+
+
 -(void) handleReadStreamEvents:(NSStreamEvent) eventCode
 {
     NSLog(@"Handling ReadStream Events");
@@ -253,19 +410,23 @@
         } break;
         case NSStreamEventHasBytesAvailable: {
             NSInteger       bytesRead;
-            uint8_t         readBuffer[32768];  //32KB
+            uint8_t         buffer[32768];  //32KB
             
             // Pull some data off the network.
             
-            bytesRead = [self.ftpReadStream read:buffer maxLength:sizeof(readBuffer)];
+            bytesRead = [self.ftpReadStream read:buffer maxLength:sizeof(buffer)];
             
             NSLog(@"Receiving Size: %d",bytesRead);
             if (bytesRead == -1) {
                 NSLog(@"Network Read Error");
                 [self _stopReadStream];
+                [self informDownloadingFileStatus:NO];
+                [self removeDownloadedObjectFromQueue];
             } else if (bytesRead == 0) {
                 NSLog(@"Receiving Part Done");
                 [self _stopReadStream];
+                [self informDownloadingFileStatus:YES];
+                [self removeDownloadedObjectFromQueue];
             } else {
                 NSInteger   bytesWritten;
                 NSInteger   bytesWrittenSoFar;
@@ -274,10 +435,12 @@
                 
                 bytesWrittenSoFar = 0;
                 do {
-                    bytesWritten = [self.fileStream write:&readBuffer[bytesWrittenSoFar] maxLength:bytesRead - bytesWrittenSoFar];
+                    bytesWritten = [self.fileStream write:&buffer[bytesWrittenSoFar] maxLength:bytesRead - bytesWrittenSoFar];
                     assert(bytesWritten != 0);
                     if (bytesWritten == -1) {
                         NSLog(@"File Write Error");
+                        [self informDownloadingFileStatus:NO];
+                        [self removeDownloadedObjectFromQueue];
                         break;
                     } else {
                         bytesWrittenSoFar += bytesWritten;
@@ -291,6 +454,8 @@
         case NSStreamEventErrorOccurred: {
             NSLog(@"Stream Open Error : ");
             [self _stopReadStream];
+            [self informDownloadingFileStatus:NO];
+            [self removeDownloadedObjectFromQueue];
         } break;
         case NSStreamEventEndEncountered: {
             // ignore
@@ -357,7 +522,6 @@
             NSLog(@"Sending File");
             
             // If we don't have any data buffered, go read the next chunk of data.
-            
             if (self.bufferOffset == self.bufferLimit) {
                 NSInteger   bytesRead;
                 
@@ -368,9 +532,13 @@
                     NSLog(@"File Read Error");
                     [self stopWriteStream];
                 } else if (bytesRead == 0) {
-                    NSLog(@"Dosya Buffera Eklendi");
+                    NSLog(@"Dosya Gonderme Islemi Tamamlandi");
                     [self stopWriteStream];
+                    [self informUploadingFileStatus:YES];
+                    [self removeUploadedObjectFromQueue];
+
                 } else {
+                    NSLog(@"Buffer OLaniyor");
                     self.bufferOffset = 0;
                     self.bufferLimit  = bytesRead;
                 }
@@ -385,6 +553,8 @@
                 if (bytesWritten == -1) {
                     NSLog(@"Network Write Error");
                     [self stopWriteStream];
+                    [self informUploadingFileStatus:NO];
+                    [self removeUploadedObjectFromQueue];
                 } else {
                     self.bufferOffset += bytesWritten;
                 }
@@ -394,11 +564,15 @@
         case NSStreamEventErrorOccurred: {
             NSLog(@"Stream Open Error");
             [self stopWriteStream];
+            [self informUploadingFileStatus:NO];
+            [self removeUploadedObjectFromQueue];
         } break;
         case NSStreamEventEndEncountered: {
             // ignore
             NSLog(@"Ftpye Yazma Islemi Tamamlandi");
             [self stopWriteStream];
+            [self informUploadingFileStatus:YES];
+            [self removeUploadedObjectFromQueue];
         } break;
         default: {
             assert(NO);

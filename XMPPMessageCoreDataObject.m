@@ -2,7 +2,7 @@
 //  XMPPMessageCoreDataObject.m
 //  SimpleChat
 //
-//  Created by ARGELA on 1/17/12.
+//  Created by ARGELA on 2/3/12.
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
 //
 
@@ -12,10 +12,12 @@
 
 @implementation XMPPMessageCoreDataObject
 
+@dynamic actualData;
 @dynamic body;
 @dynamic messageReceipant;
 @dynamic selfReplied;
 @dynamic sendDate;
+@dynamic thumbnail;
 @dynamic type;
 @dynamic whoOwns;
 

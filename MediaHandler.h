@@ -20,10 +20,12 @@
 
 @interface MediaHandler : NSObject<UIImagePickerControllerDelegate,UINavigationControllerDelegate>
 
-@property (nonatomic,assign) XMPPJID *toJid;
+@property (nonatomic,assign) NSString *toChatJid;
+@property (nonatomic,assign) XMPPJID *selfJid;
 @property (nonatomic,assign) id<MediaHandlerDelegate> delegate;
 
 -(void) takePhoto;
+-(void) takeFromGallery;
 
 
 @end

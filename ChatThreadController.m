@@ -10,12 +10,15 @@
 #import "XMPPMessageCoreDataObject.h"
 #import "chatMessageCell.h"
 #import "MediaHandler.h"
+#import "MediaViewController.h"
 
 
 
-@interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate,UIActionSheetDelegate,MediaHandlerDelegate>
+@interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate,UIActionSheetDelegate,MediaHandlerDelegate,ChatCellDelegate>
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @property (nonatomic,strong) MediaHandler *mediaHandler;
+@property BOOL isSegueInitialized;
+@property NSInteger viewImageIndex;
 @end
 
 @implementation ChatThreadController
@@ -23,10 +26,33 @@
 @synthesize keyboardToolbar;
 @synthesize chatTextField;
 @synthesize chatWith = _chatWith;
+@synthesize myJid = _myJid;
 @synthesize fetchedResultsController = _fetchedResultsController;
 @synthesize context = _context;
 @synthesize selfID = _selfID;
 @synthesize mediaHandler = _mediaHandler;
+@synthesize isSegueInitialized = _isSegueInitialized;
+@synthesize viewImageIndex = _viewImageIndex;
+
+
+-(void) setMyJid:(XMPPJID *)myJid
+{
+    _myJid = myJid;
+    if (_mediaHandler) {
+        [_mediaHandler setSelfJid:_myJid];
+    }
+}
+
+
+-(void) setChatWith:(NSString *)chatWith
+{
+    _chatWith = chatWith;
+    
+    if (_mediaHandler) {
+        [_mediaHandler setToChatJid:_chatWith];
+    }
+}
+
 
 
 -(void) configure
@@ -105,6 +131,16 @@
     //[self.chatTable setDataSource:self];
     _mediaHandler = [[MediaHandler alloc] init];
     [_mediaHandler setDelegate:self];
+    
+    if (!_mediaHandler.selfJid) {
+        [_mediaHandler setSelfJid:_myJid];
+    }
+    
+    if (!_mediaHandler.toChatJid) {
+        [_mediaHandler setToChatJid:_chatWith];
+    }
+    
+    _isSegueInitialized = NO;
     
     [self configure];
 }
@@ -209,7 +245,7 @@
 
 -(NSInteger) numberOfSectionsInTableView:(UITableView *)tableView
 {
-    NSLog(@"Sections Count: %d",[[self.fetchedResultsController sections] count]);
+    //NSLog(@"Sections Count: %d",[[self.fetchedResultsController sections] count]);
     return 1;
 }
 
@@ -229,38 +265,12 @@
 -(UITableViewCell*) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     static NSString *CellIdentifier = @"messageCell";
-    
-    /*
-	UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-	if (cell == nil)
-	{
-		cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
-                                      reuseIdentifier:CellIdentifier];
-        
-	}
-    
-    
-    XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
-    
-    if (messageObj) {
-        cell.textLabel.text = messageObj.body;
-        if (messageObj.selfReplied == [NSNumber numberWithInt:1]) {
-            cell.textLabel.textAlignment = UITextAlignmentRight;
-        } else {
-            cell.textLabel.textAlignment = UITextAlignmentLeft;
-        }
-        
-    }
-     
-     */
-    
-    
      
     chatMessageCell *cell = (chatMessageCell *)[tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-	if (cell == nil)
+    if (cell == nil)
 	{
+        NSLog(@"Yeni Cell Olusturuluyorrr");
         NSArray* topLevelObj = [[NSBundle mainBundle] loadNibNamed:@"messageCell" owner:nil options:nil];
-        
         for (id currentObject in topLevelObj) {
             if ([currentObject isKindOfClass:[UITableViewCell class]]) {
                 cell = (chatMessageCell *) currentObject;
@@ -273,6 +283,10 @@
     
     XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
     [cell setMessage:messageObj];
+    [cell setMessageIndex:indexPath.row];
+    [cell setButtonDelegate:self];
+    NSLog(@"[ChatThreadCont] Index: %d Message Body: %@",indexPath.row,messageObj.body);
+    
     
     return cell;
 }
@@ -284,7 +298,8 @@
 }
 
 
-///ACTIONS
+//////////////////////////////////////////
+///ACTIONS///////////////////////////////
 ////////////////////////////////////////
 - (IBAction)selectAction:(id)sender 
 {
@@ -297,9 +312,11 @@
 
 -(void) actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
 {
-    NSLog(@"Action SheetButton Index %d",buttonIndex);
+    //NSLog(@"Action SheetButton Index %d",buttonIndex);
     if (buttonIndex == 0) {
         [_mediaHandler takePhoto];
+    } else if (buttonIndex == 1) {
+        [_mediaHandler takeFromGallery];
     }
 }
 
@@ -316,6 +333,31 @@
     [self dismissModalViewControllerAnimated:YES];
 }
 
+
+///////////////////////////////////////////
+
+-(void) chatCellViewButtonPressed:(NSInteger)indexOfMessage
+{
+    [self performSegueWithIdentifier:@"mediaViewSegue" sender:self];
+    _viewImageIndex = indexOfMessage;
+}
+
+
+-(void) prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
+{
+    if ([segue.identifier isEqualToString:@"mediaViewSegue"]) {
+        if (!_isSegueInitialized) {
+            [segue.destinationViewController setContext:self.context];
+            _isSegueInitialized = YES;
+        }
+        
+        NSIndexPath *indexPath = [NSIndexPath indexPathForRow:_viewImageIndex inSection:0];
+        XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
+        [segue.destinationViewController setFromUsername:_chatWith];
+        [segue.destinationViewController setMessage:messageObj];
+        
+    }
+}
 
 
 

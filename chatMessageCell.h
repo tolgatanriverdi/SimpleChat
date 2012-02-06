@@ -9,10 +9,18 @@
 #import <UIKit/UIKit.h>
 #import "XMPPMessageCoreDataObject.h"
 
+@protocol ChatCellDelegate<NSObject>
+
+-(void) chatCellViewButtonPressed:(NSInteger) indexOfMessage;
+@end
+
 @interface chatMessageCell : UITableViewCell 
 
 @property (nonatomic, assign) XMPPMessageCoreDataObject* message;
 @property (nonatomic, strong) UIImageView* play;
+@property (nonatomic) int messageIndex;
+
+@property (nonatomic,assign) id<ChatCellDelegate>buttonDelegate;
 
 
 + (CGFloat) sizeForMessage: (XMPPMessageCoreDataObject*) message;

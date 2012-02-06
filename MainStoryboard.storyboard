@@ -192,15 +192,30 @@
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
                     </view>
-                    <navigationItem key="navigationItem" id="rDc-kR-NrP"/>
+                    <navigationItem key="navigationItem" title="CHAT" id="rDc-kR-NrP"/>
                     <connections>
                         <outlet property="chatTable" destination="TnA-lc-FeZ" id="MUV-CH-FCw"/>
                         <outlet property="chatTextField" destination="L1y-zs-Mhn" id="DJD-uB-mYG"/>
                         <outlet property="keyboardToolbar" destination="dnE-Xg-daj" id="hCQ-cR-shX"/>
+                        <segue destination="brH-k9-1Vm" kind="push" identifier="mediaViewSegue" id="kMN-9H-kcg"/>
                     </connections>
                 </viewController>
             </objects>
-            <point key="canvasLocation" x="1665" y="730"/>
+            <point key="canvasLocation" x="1665" y="667"/>
+        </scene>
+        <scene sceneID="tIM-My-T6h">
+            <objects>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="qu5-1M-XNU" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <viewController id="brH-k9-1Vm" customClass="MediaViewController" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="rR8-ij-Bsb">
+                        <rect key="frame" x="0.0" y="64" width="320" height="416"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                    </view>
+                    <navigationItem key="navigationItem" title="MEDIA" id="4gq-Yt-hV4"/>
+                </viewController>
+            </objects>
+            <point key="canvasLocation" x="2110" y="667"/>
         </scene>
         <scene sceneID="cRM-WT-oyP">
             <objects>

@@ -16,7 +16,9 @@
 #import "FtpHandler.h"
 
 
-@interface XMPPHandler()
+//TODO Gercek resim database e kaydedildikten sonra klasorden silinecek
+
+@interface XMPPHandler()<FtpHandlerDelegate>
 
 
 @property (nonatomic, strong) XMPPStream *xmppStream;
@@ -32,6 +34,8 @@
 
 @property (nonatomic,strong) NSString *sendingFilePath;
 @property (nonatomic,strong) FtpHandler *ftpHandler;
+
+-(NSString*) getActualFileNameFromThumbnail:(NSString*)thumbnailFileName;
 
 @end
 
@@ -114,6 +118,7 @@
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(goOnline) name:@"saveStatus" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(messageIsSending:) name:@"messageSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileIsSending:) name:@"fileSent" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaIsDownloading:) name:@"downloadMedia" object:nil];
 }
 
 
@@ -236,7 +241,8 @@
 -(void) configure
 {
     [self setupStream];
-    self.ftpHandler = [[FtpHandler alloc] init];
+    _ftpHandler = [[FtpHandler alloc] init];
+    [_ftpHandler setDelegate:self];
 }
 
 -(void) connect
@@ -254,6 +260,11 @@
     if (![self.xmppStream connect:&error]) {
         [self.delegate setXMPPHandlerConnectionStatus:NO];
     }
+}
+
+-(XMPPJID *) getMyJid
+{
+    return [self.xmppStream myJID];
 }
 
 
@@ -291,20 +302,11 @@
 -(void) sendMessage:(NSString*)messageBody toAdress:(NSString*)to withType:(NSString*)type
 {
     XMPPJID *toJid = [XMPPJID jidWithString:to];
-    NSDate *currentTime = [NSDate date];
     XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:toJid];
     [newMessage addBodyToMessage:messageBody];
-    [newMessage addSendDateToMessage:currentTime];
     
     [self.xmppStream sendElement:newMessage];
 }
-
--(void) fileIsSending:(NSNotification*)notification
-{
-    NSDictionary *fileContent = [notification userInfo];
-    [self transferFile:[fileContent valueForKey:@"filePath"] toUser:[fileContent valueForKey:@"userJid"]];
-}
-
 
 -(void) messageIsSending:(NSNotification*)notification
 {
@@ -312,16 +314,48 @@
     [self sendMessage:[messageContent valueForKey:@"body"] toAdress:[messageContent valueForKey:@"to"] withType:[messageContent valueForKey:@"type"]];
 }
 
--(void) transferFile:(NSString *)filePath toUser:(XMPPJID *)userJid
+-(void) sendFileMessage:(NSString*)thumbnailUrl withActualData:(NSString*)actualDataUrl toAdress:(XMPPJID*)toUser withType:(NSString*)type
 {
-    NSLog(@"Transfering File ");
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:toUser];
+    [newMessage addThumbNailPath:thumbnailUrl];
+    [newMessage addDataPath:actualDataUrl];
+    
+    [self.xmppStream sendElement:newMessage];
+}
+
+-(void) transferFile:(NSString *)filePath fromUser:(XMPPJID *)userJid toUser:(NSString *)toUserJid withType:(NSString*)type
+{
+    //NSLog(@"Transfering File ");
     self.sendingFilePath = filePath;
-    //[self.ftpHandler downloadFile:@"ftp://192.168.3.104/testdir/avat.jpg"];
-    [self.ftpHandler uploadFile:self.sendingFilePath withFolder:@"testdir"];
+    NSString *remotePath = [NSString stringWithFormat:@"%@-%@",[userJid bare],[userJid resource]];
+    [self.ftpHandler uploadFile:self.sendingFilePath withFolder:remotePath withType:type toUser:toUserJid];
+}
+
+-(void) fileIsSending:(NSNotification*)notification
+{
+    NSDictionary *fileContent = [notification userInfo];
+    [self transferFile:[fileContent valueForKey:@"filePath"] fromUser:[fileContent valueForKey:@"fromUserJid"] toUser:[fileContent valueForKey:@"toUserJid"] withType:[fileContent valueForKey:@"type"]];
+}
+
+-(void) mediaIsDownloading:(NSNotification*)notification
+{
+    NSDictionary *mediaContent = [notification userInfo];
+    if ([[mediaContent objectForKey:@"type"] isEqualToString:@"image"]) {
+        NSString *thumbnailFileName = [mediaContent objectForKey:@"thumbnailFileName"];
+        NSString *fromUser = [mediaContent objectForKey:@"fromUser"];
+        NSString *remoteThumbFile = [self.ftpHandler getRemoteFileName:thumbnailFileName];
+        NSString *actualRemoteImage = [self getActualFileNameFromThumbnail:remoteThumbFile];
+        NSString *localDir = [NSString stringWithFormat:@"%@-%@",fromUser,self.username];
+        
+        [self.ftpHandler downloadFile:actualRemoteImage inFolder:localDir withType:@"image" fromUser:fromUser];
+    }
+    
 }
 
 
+////////////////////////////////////
 /////XMPP STREAM DELEGATES/////////
+//////////////////////////////////
 -(void)xmppStream:(XMPPStream *)sender socketDidConnect:(GCDAsyncSocket *)socket {
     NSLog(@"Socket Baglandi");
 }
@@ -385,16 +419,19 @@
     
 	// A simple example of inbound message handling.
     
+    XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message from]
+                                                                  xmppStream:self.xmppStream
+                                                        managedObjectContext:[self getManagedObjectRoster]];
+    
+    
 	if ([message isChatMessageWithBody])
 	{
-		XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message from]
-                                                                      xmppStream:self.xmppStream
-                                                            managedObjectContext:[self getManagedObjectRoster]];
+        NSLog(@"Chat Message Geldi");
         
-		
 		NSString *body = [[message elementForName:@"body"] stringValue];
 		NSString *displayName = [user displayName];
-        NSString *sentTime = [[message elementForName:@"sendDate"] stringValue];
+        NSDate *currentTime = [NSDate date];
+        NSString *sentTime = [currentTime description];
         
         
         //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
@@ -409,12 +446,14 @@
         
 		if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateActive)
 		{
+            /*
 			UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:displayName
                                                                 message:body 
                                                                delegate:nil 
                                                       cancelButtonTitle:@"Ok" 
                                                       otherButtonTitles:nil];
 			[alertView show];
+             */
 		}
 		else
 		{
@@ -428,7 +467,7 @@
         
 
         
-        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:receipantStr withType:@"chat" includingUserJid:jidStr andUserDisplay:displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:receipantStr withType:@"chat" withThumbnail:nil withActualData:nil includingUserJid:jidStr andUserDisplay:displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
         
       
         
@@ -437,6 +476,20 @@
         }
         
 	}
+    else if ([[[message attributeForName:@"type"] stringValue] isEqualToString:@"image"]) 
+    {
+        
+        NSString *thumbnailPath = [[message elementForName:@"thumbnail"] stringValue];
+        NSString *actualDataPath = [[message elementForName:@"actualData"] stringValue];
+        NSLog(@"Image Message Geldi Thumbnail: %@  ActualData: %@",thumbnailPath,actualDataPath);
+        
+        if (thumbnailPath && actualDataPath) 
+        {
+            NSString *localDir = [NSString stringWithFormat:@"%@-%@",user.jidStr,self.username];
+            [self.ftpHandler downloadFile:thumbnailPath inFolder:localDir withType:@"thumbnail" fromUser:user.jidStr];
+        }
+        
+    }
     
     
         NSLog(@"Message Received From: %@",[[message from] full]);
@@ -447,27 +500,33 @@
 {
     NSLog(@"Mesaj Basariyla Gonderildi");
     
-    XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message to]
-                                                                  xmppStream:self.xmppStream
-                                                        managedObjectContext:[self getManagedObjectRoster]];
-    
-    
-    //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
-    //Burada receive messajin tersi uygulanir fromdaki kisi biz to daki kisi ise alicidir
-    XMPPJID *receivingID = [message to];
-    NSString *receiverName =[[receivingID user] stringByAppendingString:@"@"];
-    NSString *receiverStr = [receiverName stringByAppendingString:[receivingID domain]];
-    
-    
-    NSString *body = [[message elementForName:@"body"] stringValue];
-    NSString *sentTime = [[message elementForName:@"sendDate"] stringValue];
-    
-    XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
-    
-    
-    if (!messageCoreData) {
-        NSLog(@"Gonderilen Mesaj DB Ye Eklenemedi");
+    if ([message isChatMessage]) {
+        
+        XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message to]
+                                                                      xmppStream:self.xmppStream
+                                                            managedObjectContext:[self getManagedObjectRoster]];
+        
+        
+        //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
+        //Burada receive messajin tersi uygulanir fromdaki kisi biz to daki kisi ise alicidir
+        XMPPJID *receivingID = [message to];
+        NSString *receiverName =[[receivingID user] stringByAppendingString:@"@"];
+        NSString *receiverStr = [receiverName stringByAppendingString:[receivingID domain]];
+        
+        
+        NSString *body = [[message elementForName:@"body"] stringValue];
+        NSDate *currentTime = [NSDate date];
+        NSString *sentTime = [currentTime description];
+        
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" withThumbnail:nil withActualData:nil includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
+        
+        
+        if (!messageCoreData) {
+            NSLog(@"Gonderilen Mesaj DB Ye Eklenemedi");
+        }
+        
     }
+
 }
 
 - (void)xmppStream:(XMPPStream *)sender willSecureWithSettings:(NSMutableDictionary *)settings
@@ -513,5 +572,142 @@
 		}
 	}
 }
+
+
+////FILE OPERATIONS////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+
+-(NSString*) getActualFileNameFromThumbnail:(NSString *)thumbnailFileName
+{
+    NSString *result;
+    
+    NSString *withoutExt = [thumbnailFileName substringToIndex:[thumbnailFileName length]-14];
+    result = [withoutExt stringByAppendingString:@".png"];
+    
+    return result;
+}
+
+-(NSString*) getThumbnailFileNameFromFileName:(NSString*)fileName {
+    NSString *result;
+    
+
+    NSString *withoutExt = [fileName substringToIndex:[fileName length]-4];
+    result = [withoutExt stringByAppendingString:@"_thumbnail.png"];
+    
+    return result;
+}
+
+-(void) ftpUploadStatusChanged:(BOOL)suceed withLocalFileName:(NSString*)fileName andRemoteFileName:(NSString*)remoteFileName andType:(NSString *)type toUser:(NSString *)userId
+{
+    if (suceed) {
+        XMPPJID *toUserName = [XMPPJID jidWithString:userId];
+        XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:toUserName
+                                                                      xmppStream:self.xmppStream
+                                                            managedObjectContext:[self getManagedObjectRoster]];
+        
+        if (type == @"thumbnail") {
+            //NSLog(@"Thumbnail StatusChanged For FileName:%@ ToUser: %@",fileName,userId);
+            
+            
+            //NSLog(@"Thumbnail JidStr: %@ DisplayName %@",user.jidStr,user.displayName);
+            if (user) {
+                NSData *thumbnailData = [NSData dataWithContentsOfFile:fileName];
+                NSDate *currentTime = [NSDate date];
+                XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:fileName andSendDate:[currentTime description] andMessageReceipant:self.username withType:@"image" withThumbnail:thumbnailData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
+                
+                if (!messageCoreData) {
+                    NSLog(@"Gonderilen Mesaj DB ye Eklenemedi");
+                }
+                
+                //NSLog(@"Length Of Thumbnail: %d",[messageCoreData.thumbnail length]); 
+            }
+            
+
+        }
+        else if (type == @"image") {
+            
+            NSString *thumb = [self getThumbnailFileNameFromFileName:fileName];
+            NSLog(@"Thumbnail For The Image Is: %@",thumb);
+            
+            NSString *remoteThumb = [self getThumbnailFileNameFromFileName:remoteFileName];
+            
+            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
+            request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",thumb,user.jidStr];
+            //NSSortDescriptor *sortDesc = [NSSortDescriptor sortDescriptorWithKey:@"displayName" ascending:YES];
+            //request.sortDescriptors = [NSArray arrayWithObject:sortDesc];
+            
+            NSError *error;
+            NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
+            
+            if ([matches count] > 0) {
+                XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
+                messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
+                
+                NSLog(@"Sending Remote Thumbnail: %@",remoteThumb);
+                NSLog(@"Sending Remote File: %@",remoteFileName);
+                [self sendFileMessage:remoteThumb withActualData:remoteFileName toAdress:toUserName withType:@"image"];
+                
+                NSLog(@"Gercek Resim Thumbnailin Oldugu Kayida Eklendi");
+            }
+            
+        }
+    }
+}
+
+
+-(void) ftpDownloadStatusChanged:(BOOL)suceed withFileName:(NSString *)fileName withType:(NSString *)type fromUser:(NSString *)userId
+{
+    if (suceed) 
+    {
+        NSDate *currentTime = [NSDate date];
+        XMPPJID *fromUserName = [XMPPJID jidWithString:userId];
+        XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:fromUserName
+                                                                      xmppStream:self.xmppStream
+                                                            managedObjectContext:[self getManagedObjectRoster]];
+        
+        
+        if (user) 
+        {
+            
+            if (type == @"thumbnail") 
+            {
+                NSLog(@"Thumbnail Received: %@",fileName);
+                NSData *thumbnailData = [NSData dataWithContentsOfFile:fileName];
+                XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:fileName andSendDate:[currentTime description] andMessageReceipant:self.username withType:@"image" withThumbnail:thumbnailData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
+                
+                if (!messageCoreData) {
+                    NSLog(@"Gonderilen Mesaj DB ye Eklenemedi");
+                }
+                
+                
+            } else if(type == @"image") {
+                
+                NSString *thumb = [self getThumbnailFileNameFromFileName:fileName];
+                //NSLog(@"Thumbnail For The Image Is: %@",thumb);
+                NSLog(@"Actual ImageReceived: %@",fileName);
+                
+                
+                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
+                request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",thumb,user.jidStr];
+                
+                NSError *error;
+                NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
+                
+                if ([matches count] > 0) {
+                    XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
+                    messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
+                    
+                    NSLog(@"Gercek Resim Thumbnailin Oldugu Kayida Eklendi");
+                }
+            }
+                
+        }
+        
+    }
+}
+
+
+/////////////////////////////////////////////
+////////////////////////////////////////////
 
 @end

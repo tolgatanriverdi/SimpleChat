@@ -10,21 +10,24 @@
 
 #define IMAGE_FILE_PREFIX @"avt_image_"
 
+
 @implementation MediaHandler
 
 
 @synthesize delegate = _delegate;
-@synthesize toJid = _toJid;
+@synthesize toChatJid = _toChatJid;
+@synthesize selfJid = _selfJid;
 
 
--(void) sendFile:(NSString*)fileName
+-(void) sendFile:(NSString*)fileName withType:(NSString*)fileType
 {
     NSLog(@"Sending File: %@",fileName);
     //Burasi denemek icindir silinecek
     
-    NSArray *keys = [NSArray arrayWithObjects:@"filePath",@"userJid", nil];
-    NSArray *values = [NSArray arrayWithObjects:fileName,_toJid, nil];
-    NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:values forKeys:keys];
+    NSArray *keys = [NSArray arrayWithObjects:@"filePath",@"fromUserJid",@"toUserJid",@"type", nil];
+    NSArray *objects = [NSArray arrayWithObjects:fileName,_selfJid,_toChatJid,fileType, nil];
+    NSLog(@"Count Of Objects: %d Count Of Keys: %d",[objects count],[keys count]);
+    NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:objects forKeys:keys];
     
     [[NSNotificationCenter defaultCenter] postNotificationName:@"fileSent" object:nil userInfo:fileContents];
 }
@@ -38,17 +41,58 @@
             [imagePicker setDelegate:self];
             [imagePicker setSourceType:UIImagePickerControllerSourceTypeCamera];
             [imagePicker setMediaTypes:[NSArray arrayWithObject:(NSString*) kUTTypeImage]];
-            [imagePicker setAllowsEditing:YES];
+            [imagePicker setAllowsEditing:NO];
             [_delegate presentImagePickerController:imagePicker];
         }
         
     }
 }
 
+-(void) takeFromGallery
+{
+    if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeSavedPhotosAlbum]) 
+    {
+        NSArray *mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:UIImagePickerControllerSourceTypeSavedPhotosAlbum];
+        if ([mediaTypes containsObject:(NSString*) kUTTypeImage]) {
+            UIImagePickerController *imagePicker = [[UIImagePickerController alloc] init];
+            [imagePicker setDelegate:self];
+            [imagePicker setSourceType:UIImagePickerControllerSourceTypeSavedPhotosAlbum];
+            [imagePicker setMediaTypes:[NSArray arrayWithObject:(NSString*) kUTTypeImage]];
+            [_delegate presentImagePickerController:imagePicker];
+        }
+    }
+}
+
+
+-(void) createThumbnailFromImage:(UIImage*)image inFilePath:(NSString*)filePath
+{
+    
+    if (image) {
+        UIGraphicsBeginImageContext(CGSizeMake(60.0, 60.0));
+        [image drawInRect:CGRectMake(0.0, 0.0, 60.0, 60.0)];
+        UIImage *thumbnailImage = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        NSData *thumbnailData = UIImagePNGRepresentation(thumbnailImage);
+        
+        NSString *thumbnailFullPath = [filePath stringByAppendingString:@"_thumbnail.png"];
+        NSLog(@"Creating Thumbnail at: %@",thumbnailFullPath);
+        if ([[NSFileManager defaultManager] fileExistsAtPath:thumbnailFullPath])
+        {
+            [[NSFileManager defaultManager] removeItemAtPath:thumbnailFullPath error:nil];
+        }
+        
+        if ([[NSFileManager defaultManager] createFileAtPath:thumbnailFullPath contents:thumbnailData attributes:nil])
+        {
+            [self sendFile:thumbnailFullPath withType:@"thumbnail"];
+        }
+    }
+    
+}
+
 
 -(void) imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
-    NSString *folderName = [_toJid bare];
+    NSString *folderName = [NSString stringWithFormat:@"%@-%@",_toChatJid,[_selfJid bare]];
     NSArray *documentsDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirPath = [documentsDir objectAtIndex:0];
     NSString *documentsFullPath = [documentsDirPath stringByAppendingPathComponent:folderName];
@@ -59,24 +103,34 @@
     
     int fileCount = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:documentsFullPath error:nil] count];
     NSString *fullFilePath = [documentsFullPath stringByAppendingPathComponent:IMAGE_FILE_PREFIX];
-    NSString *fileExactPath = [NSString stringWithFormat:@"%@%d",fullFilePath,fileCount];
-    
+    NSString *fileExactPath = [NSString stringWithFormat:@"%@%d",fullFilePath,fileCount+1];
+    NSString *filePathWithExt = [fileExactPath stringByAppendingString:@".png"];
     
     UIImage* image = [info objectForKey:UIImagePickerControllerEditedImage];
     if (!image) {
         image = [info objectForKey:UIImagePickerControllerOriginalImage];
     }
     
-    NSData *imageData = UIImagePNGRepresentation(image);
-    if ([[NSFileManager defaultManager] fileExistsAtPath:fileExactPath]) {
-        [[NSFileManager defaultManager] removeItemAtPath:fileExactPath error:nil];
+    
+    UIGraphicsBeginImageContext(CGSizeMake(960.0, 640.0));
+    [image drawInRect:CGRectMake(0.0, 0.0, 960.0, 640.0)];
+    UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    [self createThumbnailFromImage:resizedImage inFilePath:fileExactPath];
+    
+    NSData *imageData = UIImagePNGRepresentation(resizedImage);
+    if ([[NSFileManager defaultManager] fileExistsAtPath:filePathWithExt]) {
+        [[NSFileManager defaultManager] removeItemAtPath:filePathWithExt error:nil];
     }
     
-    if([[NSFileManager defaultManager] createFileAtPath:fileExactPath contents:imageData attributes:nil])
+    if([[NSFileManager defaultManager] createFileAtPath:filePathWithExt contents:imageData attributes:nil])
     {
         NSLog(@"Resim Dosyasi Kaydedildi Gonderiliyor");
-        [self sendFile:fileExactPath];  
+        [self sendFile:filePathWithExt withType:@"image"];
     }
+    
+
 
     
     [_delegate dismissImagePicker];

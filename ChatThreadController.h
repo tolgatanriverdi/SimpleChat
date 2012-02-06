@@ -16,6 +16,7 @@
 
 
 @property (nonatomic,assign) NSString *chatWith;
+@property (nonatomic,assign) XMPPJID *myJid;
 @property (nonatomic,assign) NSString *selfID;
 @property (nonatomic,strong) NSManagedObjectContext *context;
 

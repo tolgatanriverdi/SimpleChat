@@ -66,8 +66,8 @@
         [DDLog addLogger:[DDTTYLogger sharedInstance]];
         
         // Setup the XMPP stream
-    //NSString *hostName = @"192.168.12.30";
-    NSString *hostName = @"107.21.110.228";
+    NSString *hostName = @"95.0.221.23";
+    //NSString *hostName = @"107.21.110.228";
     NSString *latestPath = [@"@" stringByAppendingString:hostName];
     NSString *fullUName = [self.username.text stringByAppendingString:latestPath];
     [self.username setText:fullUName];
@@ -154,6 +154,7 @@
         [segue.destinationViewController setContext:[self.xmppHandler getManagedObjectRoster]];
         [segue.destinationViewController setChatThreadContext:[self.xmppHandler getmanagedObjectMessage]];
         [segue.destinationViewController setSelfID:[self.username text]];
+        [segue.destinationViewController setSelfJID:[self.xmppHandler getMyJid]];
     }
 }
 

@@ -16,6 +16,7 @@
 @property (nonatomic,strong) NSManagedObjectContext *chatThreadContext;
 
 @property (nonatomic,assign) NSString* selfID;
+@property (nonatomic,assign) XMPPJID *selfJID;
 
 -(void) presenceStatusChanged:(XMPPJID*)jid withStatus:(NSString*)status;
 @end

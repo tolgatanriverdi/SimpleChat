@@ -23,6 +23,7 @@
 @synthesize friendsPresenceStatus = _friendsPresenceStatus;
 @synthesize chatThreadContext = _chatThreadContext;
 @synthesize selfID = _selfID;
+@synthesize selfJID = _selfJID;
 
 ////////Fetch ResultsController///////////////
 -(void) configure
@@ -235,7 +236,9 @@
             XMPPUserCoreDataStorageObject *user = [self.fetchedResultsController objectAtIndexPath:indexPath];
             [segue.destinationViewController setChatWith:[user.jid description]];
             [segue.destinationViewController setContext:self.chatThreadContext];
+            NSLog(@"SELFID: %@",self.selfID);
             [segue.destinationViewController setSelfID:self.selfID];
+            [segue.destinationViewController setMyJid:self.selfJID];
         }
     }
 

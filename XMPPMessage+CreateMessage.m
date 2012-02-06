@@ -16,13 +16,17 @@
     [self addChild:bodyElement];
 }
 
--(void) addSendDateToMessage:(NSDate *)sendDate
+-(void) addThumbNailPath:(NSString *)path
 {
-    NSString *sendingDate = [sendDate description];
-    NSLog(@"Sending Date For Message is: %@",sendingDate);
-    
-    NSXMLElement *sendDateElement = [NSXMLElement elementWithName:@"sendDate" stringValue:sendingDate];
-    [self addChild:sendDateElement];
+    NSXMLElement *thumbnailElement = [NSXMLElement elementWithName:@"thumbnail" stringValue:path];
+    [self addChild:thumbnailElement];
 }
+
+-(void) addDataPath:(NSString *)path
+{
+    NSXMLElement *actualData = [NSXMLElement elementWithName:@"actualData" stringValue:path];
+    [self addChild:actualData];
+}
+
 
 @end
