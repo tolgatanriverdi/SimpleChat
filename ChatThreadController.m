@@ -346,13 +346,9 @@
 -(void) prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
     if ([segue.identifier isEqualToString:@"mediaViewSegue"]) {
-        if (!_isSegueInitialized) {
-            [segue.destinationViewController setContext:self.context];
-            _isSegueInitialized = YES;
-        }
-        
         NSIndexPath *indexPath = [NSIndexPath indexPathForRow:_viewImageIndex inSection:0];
         XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
+        [segue.destinationViewController setContext:self.context];
         [segue.destinationViewController setFromUsername:_chatWith];
         [segue.destinationViewController setMessage:messageObj];
         

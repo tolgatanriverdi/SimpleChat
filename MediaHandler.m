@@ -26,7 +26,7 @@
     
     NSArray *keys = [NSArray arrayWithObjects:@"filePath",@"fromUserJid",@"toUserJid",@"type", nil];
     NSArray *objects = [NSArray arrayWithObjects:fileName,_selfJid,_toChatJid,fileType, nil];
-    NSLog(@"Count Of Objects: %d Count Of Keys: %d",[objects count],[keys count]);
+    //NSLog(@"Count Of Objects: %d Count Of Keys: %d",[objects count],[keys count]);
     NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:objects forKeys:keys];
     
     [[NSNotificationCenter defaultCenter] postNotificationName:@"fileSent" object:nil userInfo:fileContents];
@@ -75,7 +75,7 @@
         NSData *thumbnailData = UIImagePNGRepresentation(thumbnailImage);
         
         NSString *thumbnailFullPath = [filePath stringByAppendingString:@"_thumbnail.png"];
-        NSLog(@"Creating Thumbnail at: %@",thumbnailFullPath);
+        //NSLog(@"Creating Thumbnail at: %@",thumbnailFullPath);
         if ([[NSFileManager defaultManager] fileExistsAtPath:thumbnailFullPath])
         {
             [[NSFileManager defaultManager] removeItemAtPath:thumbnailFullPath error:nil];
@@ -126,12 +126,9 @@
     
     if([[NSFileManager defaultManager] createFileAtPath:filePathWithExt contents:imageData attributes:nil])
     {
-        NSLog(@"Resim Dosyasi Kaydedildi Gonderiliyor");
+        //NSLog(@"Resim Dosyasi Kaydedildi Gonderiliyor");
         [self sendFile:filePathWithExt withType:@"image"];
     }
-    
-
-
     
     [_delegate dismissImagePicker];
 }

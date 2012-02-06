@@ -43,18 +43,23 @@
             _images = [[NSMutableDictionary alloc] init];
     }
     
+
     if (![_images objectForKey:pageIndex])
     {
-        XMPPMessageCoreDataObject *mediaMessage = [_messages objectAtIndex:page];
-        if (mediaMessage.type == @"image") {
-            UIImage *mediaImage = [UIImage imageWithData:mediaMessage.actualData];
-            UIImageView *mediaImageView = [[UIImageView alloc] initWithImage:mediaImage];
-            CGRect mediaImageFrame = _scrollView.frame;
-            mediaImageFrame.origin.x = (self.view.frame.size.width+imageOffset)*page;
-            mediaImageView.frame = mediaImageFrame;
-            [_scrollView addSubview:mediaImageView];
-            [_images setObject:mediaImageView forKey:pageIndex];
-        }        
+        if ([_messages count] >= page+1) 
+        {
+            XMPPMessageCoreDataObject *mediaMessage = [_messages objectAtIndex:page];
+            if (mediaMessage.type == @"image") {
+                UIImage *mediaImage = [UIImage imageWithData:mediaMessage.actualData];
+                UIImageView *mediaImageView = [[UIImageView alloc] initWithImage:mediaImage];
+                CGRect mediaImageFrame = _scrollView.frame;
+                mediaImageFrame.origin.x = (self.view.frame.size.width+imageOffset)*page;
+                mediaImageView.frame = mediaImageFrame;
+                [_scrollView addSubview:mediaImageView];
+                [_images setObject:mediaImageView forKey:pageIndex];
+            }        
+        }
+       
     }
     
 	
@@ -67,7 +72,11 @@
     //XMPPJID *fromJid = [XMPPJID jidWithString:userId];
     
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
+    NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"sendDate" ascending:YES];
+    NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
+    
     request.predicate = [NSPredicate predicateWithFormat:@"whoOwns.jidStr = %@ AND type != %@",_fromUsername,@"chat"];
+    request.sortDescriptors = sortDescriptors;
     
     NSError *error;
     _messages = [self.context executeFetchRequest:request error:&error];
@@ -75,14 +84,12 @@
     NSLog(@"MediaView Message Count: %d FromUsername: %@",[_messages count],fromUsername);
     
     if (_scrollView) {
-        NSLog(@"Scroll View Siliniyor");
         [_scrollView removeFromSuperview];
         _scrollView.delegate = nil;
         _scrollView = nil;
     }
     
     if (!_scrollView) {
-        NSLog(@"Scroll View Yaratiliyor");
         _scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height)];
         _scrollView.contentSize = CGSizeMake((self.view.frame.size.width+20)*[_messages count], self.view.frame.size.height);
         _scrollView.showsHorizontalScrollIndicator = NO;
@@ -173,7 +180,7 @@
 -(void) scrollViewDidScroll:(UIScrollView *)scrollView
 {
     int currentPage = floor(_scrollView.contentOffset.x/self.view.frame.size.width);
-    NSLog(@"Scrolll Did Scroll CurrentPage: %d",currentPage);
+    //NSLog(@"Scrolll Did Scroll CurrentPage: %d",currentPage);
     
     [self loadPage:currentPage-1];
     [self loadPage:currentPage];
