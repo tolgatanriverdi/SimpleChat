@@ -11,10 +11,11 @@
 #import "XMPPFramework.h"
 #import <AVFoundation/AVAudioPlayer.h>
 
-@interface MediaViewController()
+@interface MediaViewController()<AVAudioPlayerDelegate>
 @property (nonatomic,strong) NSArray *messages;
 @property (nonatomic,strong) NSMutableDictionary *images;
 @property (nonatomic) int selectedIndex;
+@property (nonatomic,strong) AVAudioPlayer *audioPlayer;
 @end
 
 @implementation MediaViewController
@@ -25,6 +26,12 @@
 @synthesize messages = _messages;
 @synthesize selectedIndex = _selectedIndex;
 @synthesize images = _images;
+@synthesize audioPlayer = _audioPlayer;
+
+-(int) getCurrentPage
+{
+    return floor(_scrollView.contentOffset.x/self.view.frame.size.width);
+}
 
 
 -(void)loadPage:(int)page
@@ -69,8 +76,8 @@
                 
                 CGRect soundViewFrame = self.view.frame;
                 soundViewFrame.origin.x = (self.view.frame.size.width+imageOffset)*page;
-                CGRect buttonFrame = CGRectMake(120, 100, 50, 50);
-                UIButton *soundPlayButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+                CGRect buttonFrame = CGRectMake(120, 120, 80, 60);
+                UIButton *soundPlayButton = [UIButton buttonWithType:UIButtonTypeDetailDisclosure];
                 [soundPlayButton setTitle:@"PLAY" forState:UIControlStateNormal];
                 [soundPlayButton setFrame:buttonFrame];
                 [soundPlayButton addTarget:self action:@selector(playSound) forControlEvents:UIControlEventTouchUpInside];
@@ -79,6 +86,12 @@
                 [soundView addSubview:soundPlayButton];
                 [_scrollView addSubview:soundView];
                 [_images setObject:soundView forKey:pageIndex];
+                
+
+                NSError *audioError;
+                _audioPlayer = [[AVAudioPlayer alloc] initWithData:mediaMessage.actualData error:&audioError];
+                _audioPlayer.delegate = self;
+                    
             }
         }
        
@@ -155,22 +168,30 @@
 
 -(void) playSound
 {
-    int currentPage = floor(_scrollView.contentOffset.x/self.view.frame.size.width);
-    NSLog(@"Play Sound CurrentPage: %d",currentPage);
-    if (currentPage < 0 || currentPage > [_messages count]) {
-        return;
+    int pageIndex = [self getCurrentPage];
+    UIView *soundView = [_images objectForKey:[NSNumber numberWithInt:pageIndex]];
+    UIButton *playStopButton;
+    if (soundView) {
+        for (UIButton *button in [soundView subviews]) {
+            playStopButton = button;
+        }
     }
     
-    XMPPMessageCoreDataObject *audioMessage = [_messages objectAtIndex:currentPage];
-    
-    if (audioMessage.type == @"audio") {
-        NSLog(@"Audio Mesaji Bulundu Caliniyor");
-        AVAudioPlayer *audioPlayer = [[AVAudioPlayer alloc] initWithData:audioMessage.actualData error:nil];
-        [audioPlayer play];     
+    if (!_audioPlayer.isPlaying) {
+        NSLog(@"Audio Player Starts To Play");
+        [_audioPlayer play];
+        
+        if (playStopButton) {
+            [playStopButton setTitle:@"STOP" forState:UIControlStateNormal];
+        }
+    } else {
+        NSLog(@"Audio Player Trying To Stop");
+        [_audioPlayer stop];
+        
+        if (playStopButton) {
+            [playStopButton setTitle:@"PLAY" forState:UIControlStateNormal];
+        }
     }
-
-
-    
 }
 
 -(void) setMessage:(XMPPMessageCoreDataObject*)message
@@ -224,12 +245,29 @@
 ///DELEGATES
 -(void) scrollViewDidScroll:(UIScrollView *)scrollView
 {
-    int currentPage = floor(_scrollView.contentOffset.x/self.view.frame.size.width);
+    int currentPage = [self getCurrentPage];
     //NSLog(@"Scrolll Did Scroll CurrentPage: %d",currentPage);
     
     [self loadPage:currentPage-1];
     [self loadPage:currentPage];
     [self loadPage:currentPage+1];
+}
+
+-(void) audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag
+{
+    int pageIndex = [self getCurrentPage];
+    UIView *soundView = [_images objectForKey:[NSNumber numberWithInt:pageIndex]];
+    UIButton *playStopButton;
+    if (soundView) {
+        for (UIButton *button in [soundView subviews]) {
+            playStopButton = button;
+        }
+    }
+    
+    if (playStopButton)
+    {
+        [playStopButton setTitle:@"PLAY" forState:UIControlStateNormal];
+    }
 }
 
 @end
