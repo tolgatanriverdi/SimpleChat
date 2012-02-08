@@ -6,13 +6,17 @@
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
 //
 
+//TODO gps sinyali bulunup koordinat alinana kadar activity indicator cikacak
+
 #import "MediaHandler.h"
 #import "AudioRecordController.h"
+#import <CoreLocation/CoreLocation.h>
 
 #define IMAGE_FILE_PREFIX @"avt_image_"
 #define SOUND_FILE_PREFIX @"avt_sound_"
 
-@interface MediaHandler()<AudioRecordControllerDelegate>
+@interface MediaHandler()<AudioRecordControllerDelegate,CLLocationManagerDelegate>
+@property (nonatomic,strong) CLLocationManager* locationManager;
 @end
 
 
@@ -22,7 +26,7 @@
 @synthesize delegate = _delegate;
 @synthesize toChatJid = _toChatJid;
 @synthesize selfJid = _selfJid;
-
+@synthesize locationManager = _locationManager;
 
 -(void) sendFile:(NSString*)fileName withType:(NSString*)fileType
 {
@@ -35,6 +39,16 @@
     NSDictionary *fileContents = [NSDictionary dictionaryWithObjects:objects forKeys:keys];
     
     [[NSNotificationCenter defaultCenter] postNotificationName:@"fileSent" object:nil userInfo:fileContents];
+}
+
+-(void) sendCoordinate:(double)lattitude andLongitude:(double)longitude
+{
+    NSLog(@"Sending Coordinate");
+    
+    NSDictionary *coordCont = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithDouble:lattitude],@"lat",[NSNumber numberWithDouble:longitude],@"lon",_toChatJid,@"toUser", nil];
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"coordSent" object:nil userInfo:coordCont];
+    
 }
 
 -(void) takePhoto
@@ -97,6 +111,33 @@
 }
 
 
+-(void) getLocation
+{
+    if ([CLLocationManager locationServicesEnabled])
+    {
+        if (!_locationManager) {
+            NSLog(@"Location Manager Olusturuluyor");
+            _locationManager = [[CLLocationManager alloc] init];
+            _locationManager.delegate = self;
+        }
+        
+        [_locationManager startUpdatingLocation];
+    }
+    else {
+        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"GPS ERROR"
+                                                            message:@"LOCATION SERVICES IS DISABLED ON YOUR IPHONE" 
+                                                           delegate:nil 
+                                                  cancelButtonTitle:@"Ok" 
+                                                  otherButtonTitles:nil];
+        [alertView show];
+    }
+    
+}
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////
 -(void) createThumbnailFromImage:(UIImage*)image inFilePath:(NSString*)filePath
 {
     
@@ -173,11 +214,16 @@
     [_delegate dismissMediaPicker];
 }
 
-
-
 -(void) audioRecordControllerSendPressed:(NSString *)fileName
 {
     [self sendFile:fileName withType:@"audio"];
+}
+
+-(void) locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation
+{
+    CLLocationCoordinate2D coordinates = [newLocation coordinate];
+    [self sendCoordinate:coordinates.latitude andLongitude:coordinates.longitude];
+    [_locationManager stopUpdatingLocation];
 }
 
 @end

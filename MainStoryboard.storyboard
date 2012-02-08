@@ -212,6 +212,29 @@
                     </connections>
                 </viewController>
             </objects>
+            <point key="canvasLocation" x="2520" y="93"/>
+        </scene>
+        <scene sceneID="HxC-yL-EbK">
+            <objects>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="Cf7-RF-BwC" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <viewController storyboardIdentifier="mapViewCont" id="afk-Vk-h2Q" customClass="MapViewController" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="cBk-tG-JCT">
+                        <rect key="frame" x="0.0" y="64" width="320" height="416"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                        <subviews>
+                            <mapView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" mapType="standard" id="mjG-7V-Fne">
+                                <rect key="frame" x="0.0" y="0.0" width="320" height="416"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                            </mapView>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="kx6-Bd-0fi"/>
+                    <connections>
+                        <outlet property="mapView" destination="mjG-7V-Fne" id="chz-QC-De5"/>
+                    </connections>
+                </viewController>
+            </objects>
             <point key="canvasLocation" x="2110" y="93"/>
         </scene>
         <scene sceneID="6yY-9U-gab">
@@ -275,6 +298,7 @@
                         <outlet property="chatTextField" destination="L1y-zs-Mhn" id="DJD-uB-mYG"/>
                         <outlet property="keyboardToolbar" destination="dnE-Xg-daj" id="hCQ-cR-shX"/>
                         <segue destination="brH-k9-1Vm" kind="push" identifier="mediaViewSegue" id="kMN-9H-kcg"/>
+                        <segue destination="afk-Vk-h2Q" kind="push" identifier="mapSegue" id="oYU-QI-VXp"/>
                     </connections>
                 </viewController>
             </objects>

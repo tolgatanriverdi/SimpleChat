@@ -28,6 +28,7 @@
 -(void) takePhoto;
 -(void) takeFromGallery;
 -(void) recordSound;
+-(void) getLocation;
 
 
 @end

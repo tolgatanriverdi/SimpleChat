@@ -118,6 +118,7 @@
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(goOnline) name:@"saveStatus" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(messageIsSending:) name:@"messageSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileIsSending:) name:@"fileSent" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(coordIsSending:) name:@"coordSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaIsDownloading:) name:@"downloadMedia" object:nil];
 }
 
@@ -312,6 +313,21 @@
 {
     NSDictionary *messageContent = [notification userInfo];
     [self sendMessage:[messageContent valueForKey:@"body"] toAdress:[messageContent valueForKey:@"to"] withType:[messageContent valueForKey:@"type"]];
+}
+
+-(void) sendCoordinateMessage:(double)lattitude andLongitude:(double)longitude toUser:(NSString*)to
+{
+    XMPPJID *toJid = [XMPPJID jidWithString:to];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"coordinate" to:toJid];
+    [newMessage addLattitude:lattitude andLongitude:longitude];
+    [self.xmppStream sendElement:newMessage];
+}
+
+-(void) coordIsSending:(NSNotification*)notification
+{
+    NSDictionary *coordContent = [notification userInfo];
+    [self sendCoordinateMessage:[[coordContent valueForKey:@"lat"] doubleValue] andLongitude:[[coordContent valueForKey:@"lon"] doubleValue] toUser:[coordContent valueForKey:@"toUser"]];
+    
 }
 
 -(void) sendFileMessage:(NSString*)thumbnailUrl withActualData:(NSString*)actualDataUrl toAdress:(XMPPJID*)toUser withType:(NSString*)type
@@ -524,7 +540,7 @@
     else if ([message isAudioMessage])
     {
         NSString *actualDataPath = [[message elementForName:@"actualData"] stringValue];
-        NSLog(@"Audio Message Geldi ActualDataPath: %@",actualDataPath);
+        //NSLog(@"Audio Message Geldi ActualDataPath: %@",actualDataPath);
         
         if (actualDataPath) {
             
@@ -552,6 +568,25 @@
             
         }
     }
+    else if ([message isCoordMessage])
+    {
+        NSLog(@"Coordinate Mesaj Geldi");
+        NSString *latStr = [[message elementForName:@"lattitude"] stringValue];
+        NSString *lonStr = [[message elementForName:@"longitude"] stringValue];
+        NSString *messageStr = [latStr stringByAppendingFormat:@",%@",lonStr];
+        NSString *recipantStr = [[message to] bare];
+        NSString *fromJidStr = [[message from] bare];
+        
+        NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"googlemaps" ofType:@"png"];
+        NSData *iconData = [NSData dataWithContentsOfFile:iconPath];
+        
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:messageStr andSendDate:[currentTime description] andMessageReceipant:recipantStr withType:@"coordinate" withThumbnail:iconData withActualData:nil includingUserJid:fromJidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
+        
+        if (!messageCoreData) {
+            NSLog(@"Gelen Coordinate Mesaj DB ye Eklenemedi");
+        }
+        
+    }
     
         NSLog(@"Message Received From: %@",[[message from] full]);
     
@@ -561,11 +596,15 @@
 {
     NSLog(@"Mesaj Basariyla Gonderildi");
     
+    XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message to]
+                                                                  xmppStream:self.xmppStream
+                                                        managedObjectContext:[self getManagedObjectRoster]];
+    
+    NSDate *currentTime = [NSDate date];
+    NSString *sentTime = [currentTime description];
+    
+    
     if ([message isChatMessage]) {
-        
-        XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:[message to]
-                                                                      xmppStream:self.xmppStream
-                                                            managedObjectContext:[self getManagedObjectRoster]];
         
         
         //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
@@ -576,14 +615,28 @@
         
         
         NSString *body = [[message elementForName:@"body"] stringValue];
-        NSDate *currentTime = [NSDate date];
-        NSString *sentTime = [currentTime description];
         
         XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:body andSendDate:sentTime andMessageReceipant:self.username withType:@"chat" withThumbnail:nil withActualData:nil includingUserJid:receiverStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
         
         
         if (!messageCoreData) {
             NSLog(@"Gonderilen Mesaj DB Ye Eklenemedi");
+        }
+        
+    }
+    else if ([message isCoordMessage]) {
+        
+        NSString *latStr = [[message elementForName:@"lattitude"] stringValue];
+        NSString *lonStr = [[message elementForName:@"longitude"] stringValue];
+        NSString *messageStr = [latStr stringByAppendingFormat:@",%@",lonStr];
+        
+        NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"googlemaps" ofType:@"png"];
+        NSData *iconData = [NSData dataWithContentsOfFile:iconPath];
+        
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:messageStr andSendDate:sentTime andMessageReceipant:self.username withType:@"coordinate" withThumbnail:iconData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
+        
+        if (!messageCoreData) {
+            NSLog(@"Gonderilen Coord Mesaj DB Ye Eklenemedi");
         }
         
     }

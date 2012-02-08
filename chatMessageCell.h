@@ -11,7 +11,7 @@
 
 @protocol ChatCellDelegate<NSObject>
 
--(void) chatCellViewButtonPressed:(NSInteger) indexOfMessage;
+-(void) chatCellViewButtonPressed:(XMPPMessageCoreDataObject*) selectedMessage;
 @end
 
 @interface chatMessageCell : UITableViewCell 

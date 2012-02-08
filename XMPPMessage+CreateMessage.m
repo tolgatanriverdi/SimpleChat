@@ -28,6 +28,20 @@
     [self addChild:actualData];
 }
 
+-(void) addLattitude:(double)lattitude andLongitude:(double)longitude
+{
+    NSString *latStr = [NSString stringWithFormat:@"%f",lattitude];
+    NSString *lonStr = [NSString stringWithFormat:@"%f",longitude];
+    NSXMLElement *latElement = [NSXMLElement elementWithName:@"lattitude" stringValue:latStr];
+    [self addChild:latElement];
+    NSXMLElement *lonElement = [NSXMLElement elementWithName:@"longitude" stringValue:lonStr];
+    [self addChild:lonElement];
+}
+
+
+
+/////////////////////////////////////
+
 
 -(BOOL) isImageMessage
 {
@@ -47,6 +61,17 @@
     }
     
     return result;    
+}
+
+-(BOOL) isCoordMessage
+{
+    BOOL result=NO;
+    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"coordinate"])
+    {
+        result = YES;
+    }
+    
+    return result;
 }
 
 @end

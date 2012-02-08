@@ -17,7 +17,7 @@
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate,UIActionSheetDelegate,MediaHandlerDelegate,ChatCellDelegate>
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @property (nonatomic,strong) MediaHandler *mediaHandler;
-@property NSInteger viewImageIndex;
+@property (nonatomic,assign) XMPPMessageCoreDataObject* selectedMessageToView;
 @end
 
 @implementation ChatThreadController
@@ -30,7 +30,7 @@
 @synthesize context = _context;
 @synthesize selfID = _selfID;
 @synthesize mediaHandler = _mediaHandler;
-@synthesize viewImageIndex = _viewImageIndex;
+@synthesize selectedMessageToView = _selectedMessageToView;
 
 
 -(void) setMyJid:(XMPPJID *)myJid
@@ -320,6 +320,11 @@
         case 2:
             [_mediaHandler recordSound];
             break;
+        case 3:
+            break;
+        case 4:
+            [_mediaHandler getLocation];
+            break;
         default:
             break;
     }
@@ -347,21 +352,26 @@
 
 ///////////////////////////////////////////
 
--(void) chatCellViewButtonPressed:(NSInteger)indexOfMessage
+-(void) chatCellViewButtonPressed:(XMPPMessageCoreDataObject*)selectedMessage
 {
-    [self performSegueWithIdentifier:@"mediaViewSegue" sender:self];
-    _viewImageIndex = indexOfMessage;
+    _selectedMessageToView = selectedMessage;
+    if (_selectedMessageToView.type == @"coordinate") {
+        [self performSegueWithIdentifier:@"mapSegue" sender:self];
+    } else {
+        [self performSegueWithIdentifier:@"mediaViewSegue" sender:self];
+    }
+
 }
 
 
 -(void) prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
     if ([segue.identifier isEqualToString:@"mediaViewSegue"]) {
-        NSIndexPath *indexPath = [NSIndexPath indexPathForRow:_viewImageIndex inSection:0];
-        XMPPMessageCoreDataObject *messageObj = [self.fetchedResultsController objectAtIndexPath:indexPath];
         [segue.destinationViewController setContext:self.context];
         [segue.destinationViewController setFromUsername:_chatWith];
-        [segue.destinationViewController setMessage:messageObj];
+        [segue.destinationViewController setMessage:_selectedMessageToView];
+    } else if ([segue.identifier isEqualToString:@"mapSegue"]) {
+        [segue.destinationViewController setMessage:_selectedMessageToView];
     }
 }
 

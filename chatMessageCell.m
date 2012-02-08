@@ -6,6 +6,8 @@
 //  Copyright (c) 2011 __MyCompanyName__. All rights reserved.
 //
 
+//TODO File Transfer Icin Progress Bar Eklenecek
+
 #import "chatMessageCell.h"
 #import "XMPPMessageUserCoreDataObject.h"
 
@@ -72,12 +74,12 @@
 -(void) viewPressed
 {
     NSLog(@"View Button Pressed");
-    [self.buttonDelegate chatCellViewButtonPressed:self.messageIndex];
+    [self.buttonDelegate chatCellViewButtonPressed:self.message];
 }
 
 -(void) downloadPressed
 {
-    NSLog(@"Download Button Pressed");
+    //NSLog(@"Download Button Pressed");
     //NSString *thumbnailFileName = 
     NSDictionary *info;
     if ([self.message.type isEqualToString:@"image"]) {
@@ -94,7 +96,7 @@
 
 -(void) updateFrames 
 {   
-    NSLog(@"[ChatMessageCel] Index: %d Body: %@",_messageIndex,_message.body);
+    //NSLog(@"[ChatMessageCel] Index: %d Body: %@",_messageIndex,_message.body);
     self.selectionStyle = UITableViewCellSelectionStyleNone;
     _balloonView = [[UIImageView alloc] initWithFrame:CGRectZero];
     _balloonView.tag = 1;
@@ -113,6 +115,11 @@
         _msgLabel.font = [UIFont systemFontOfSize:14.0];
         
         [messageLabel addSubview:_msgLabel];
+    } else if ([self.message.type isEqualToString:@"coordinate"]) { 
+         NSLog(@"Coordinate View Butonu Ekleniyor");
+        _viewDownloadButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+        _viewDownloadButton.tag = 3;
+        [messageLabel addSubview:_viewDownloadButton];
     } else {
         if ((self.message.actualData && self.message.selfReplied) || self.message.selfReplied == [NSNumber numberWithInt:0]) 
         {
@@ -131,6 +138,8 @@
     self.balloonView = (UIImageView *)[[self.contentView viewWithTag:0] viewWithTag:1];
     if ([self.message.type isEqualToString:@"chat"]) {
         self.msgLabel = (UILabel *)[[self.contentView viewWithTag:0] viewWithTag:2];
+    } else if ([self.message.type isEqualToString:@"coordinate"]) {
+        self.viewDownloadButton = (UIButton*)[[self.contentView viewWithTag:0] viewWithTag:3];
     } else {
         if ((self.message.actualData && self.message.selfReplied) || self.message.selfReplied == [NSNumber numberWithInt:0]) {
             //NSLog(@"ViewDownload Button Listeye Ekleniyor");
@@ -152,7 +161,7 @@
             self.balloonView.frame = CGRectMake(240.0, 8.0, 60.0, 60.0);
             balloon = [UIImage imageWithData:self.message.thumbnail];
             
-            if (self.message.actualData) {
+            if (self.message.actualData || [self.message.type isEqualToString:@"coordinate"]) {
                 self.viewDownloadButton.frame = CGRectMake(160, 34.0, 60.0, 30.0);
                 [self.viewDownloadButton setTitle:_mediaViewButtonStr forState:UIControlStateNormal];
                 [self.viewDownloadButton addTarget:self action:@selector(viewPressed) forControlEvents:UIControlEventTouchUpInside];
@@ -169,7 +178,7 @@
             self.balloonView.frame = CGRectMake(5.0, 8.0, 60.0, 65.0);
             balloon = [UIImage imageWithData:self.message.thumbnail];
             
-            if (!self.message.actualData) {
+            if (!self.message.actualData && ![self.message.type isEqualToString:@"coordinate"]) {
                 //NSLog(@"Actual Data Yok");
                 self.viewDownloadButton.frame = CGRectMake(100, 34.0, 100.0, 30.0);
                 [self.viewDownloadButton setTitle:@"Download" forState:UIControlStateNormal];
@@ -200,6 +209,8 @@
         _mediaViewButtonStr = @"View";
     } else if (_message.type == @"audio") {
         _mediaViewButtonStr = @"Play";
+    } else if(_message.type == @"coordinate") { 
+        _mediaViewButtonStr = @"View";
     } else {
         _mediaViewButtonStr = @"";
     }
