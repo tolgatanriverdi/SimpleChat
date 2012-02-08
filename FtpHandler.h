@@ -27,5 +27,8 @@
 -(void) downloadFile:(NSString*)fileUrl inFolder:(NSString*)folderName withType:(NSString*)type fromUser:(NSString*)userId;
 -(void) uploadFile:(NSString*)fileName withFolder:(NSString *)folder withType:(NSString*)type toUser:(NSString*)userId;
 -(NSString*) getRemoteFileName:(NSString*)forLocalFile;
+ 
+//Bu method downloadfile i kulanmadan local remote dictionarye bir item eklemek icindir bunun disinda downloadfile kullanildiginda otomatik olarak eklenir
+-(void) addLocalFile:(NSString*)localFileName forRemoteFile:(NSString*)remoteFileName;
 
 @end

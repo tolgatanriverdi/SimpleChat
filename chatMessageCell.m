@@ -13,6 +13,7 @@
 @property (nonatomic,strong) UIImageView *balloonView;
 @property (nonatomic,strong) UILabel *msgLabel;
 @property (nonatomic,strong) UIButton *viewDownloadButton;
+@property (nonatomic,strong) NSString* mediaViewButtonStr;
 @end
 
 
@@ -27,6 +28,7 @@
 @synthesize viewDownloadButton = _viewDownloadButton;
 @synthesize messageIndex = _messageIndex;
 @synthesize buttonDelegate = _buttonDelegate;
+@synthesize mediaViewButtonStr = _mediaViewButtonStr;
 
 
 #pragma mark Class Methods
@@ -38,7 +40,7 @@
     CGFloat cellSize;
     if ([message.type isEqualToString:@"chat"]) {
         cellSize = size.height +15;
-    } else if ([message.type isEqualToString:@"image"]) {
+    } else {
         cellSize = 80.0;
     }
     return cellSize;
@@ -81,6 +83,9 @@
     if ([self.message.type isEqualToString:@"image"]) {
         NSString *fromUser = self.message.whoOwns.jidStr;
         info = [NSDictionary dictionaryWithObjectsAndKeys:@"image",@"type",self.message.body,@"thumbnailFileName",fromUser,@"fromUser", nil];
+    } else if ([self.message.type isEqualToString:@"audio"]) {
+        NSString *fromUser = self.message.whoOwns.jidStr;
+        info = [NSDictionary dictionaryWithObjectsAndKeys:@"audio",@"type",self.message.body,@"fileName",fromUser,@"fromUser", nil];
     }
     
     [[NSNotificationCenter defaultCenter] postNotificationName:@"downloadMedia" object:nil userInfo:info];
@@ -108,7 +113,7 @@
         _msgLabel.font = [UIFont systemFontOfSize:14.0];
         
         [messageLabel addSubview:_msgLabel];
-    } else if ([self.message.type isEqualToString:@"image"]) {
+    } else {
         if ((self.message.actualData && self.message.selfReplied) || self.message.selfReplied == [NSNumber numberWithInt:0]) 
         {
             NSLog(@"View Butonu Ekleniyor");
@@ -126,8 +131,7 @@
     self.balloonView = (UIImageView *)[[self.contentView viewWithTag:0] viewWithTag:1];
     if ([self.message.type isEqualToString:@"chat"]) {
         self.msgLabel = (UILabel *)[[self.contentView viewWithTag:0] viewWithTag:2];
-    }
-    else if ([self.message.type isEqualToString:@"image"]) {
+    } else {
         if ((self.message.actualData && self.message.selfReplied) || self.message.selfReplied == [NSNumber numberWithInt:0]) {
             //NSLog(@"ViewDownload Button Listeye Ekleniyor");
             self.viewDownloadButton = (UIButton*)[[self.contentView viewWithTag:0] viewWithTag:3];
@@ -144,13 +148,13 @@
             self.balloonView.frame = CGRectMake(320.0f - (size.width + 28.0f), 2.0f, size.width + 28.0f, size.height + 15.0f);
             balloon = [[UIImage imageNamed:@"green.png"] stretchableImageWithLeftCapWidth:24 topCapHeight:15];
             self.msgLabel.frame = CGRectMake(307.0f - (size.width + 5.0f), 8.0f, size.width + 5.0f, size.height); 
-        } else if ([self.message.type isEqualToString:@"image"]) {
+        } else {
             self.balloonView.frame = CGRectMake(240.0, 8.0, 60.0, 60.0);
             balloon = [UIImage imageWithData:self.message.thumbnail];
             
             if (self.message.actualData) {
                 self.viewDownloadButton.frame = CGRectMake(160, 34.0, 60.0, 30.0);
-                [self.viewDownloadButton setTitle:@"View" forState:UIControlStateNormal];
+                [self.viewDownloadButton setTitle:_mediaViewButtonStr forState:UIControlStateNormal];
                 [self.viewDownloadButton addTarget:self action:@selector(viewPressed) forControlEvents:UIControlEventTouchUpInside];
             }
         }
@@ -161,7 +165,7 @@
             self.balloonView.frame = CGRectMake(0.0, 2.0, size.width + 28, size.height + 15);
             balloon = [[UIImage imageNamed:@"grey.png"] stretchableImageWithLeftCapWidth:24 topCapHeight:15];
             self.msgLabel.frame = CGRectMake(16, 8, size.width + 5, size.height);
-        } else if ([self.message.type isEqualToString:@"image"]) {
+        } else {
             self.balloonView.frame = CGRectMake(5.0, 8.0, 60.0, 65.0);
             balloon = [UIImage imageWithData:self.message.thumbnail];
             
@@ -173,7 +177,7 @@
             } else {
                 //NSLog(@"Actual Data Var");
                 self.viewDownloadButton.frame = CGRectMake(100, 34.0, 60.0, 30.0);
-                [self.viewDownloadButton setTitle:@"View" forState:UIControlStateNormal];
+                [self.viewDownloadButton setTitle:_mediaViewButtonStr forState:UIControlStateNormal];
                 [self.viewDownloadButton addTarget:self action:@selector(viewPressed) forControlEvents:UIControlEventTouchUpInside];
             }
         }
@@ -191,9 +195,16 @@
 {
     //NSLog(@"SetMessageCell Geldii");
     _message = message;
-    //self.textLabel.text = self.message.body;
+    
+    if (_message.type == @"image") {
+        _mediaViewButtonStr = @"View";
+    } else if (_message.type == @"audio") {
+        _mediaViewButtonStr = @"Play";
+    } else {
+        _mediaViewButtonStr = @"";
+    }
+    
     [self updateFrames];
-    //[self.avatarImage loadFromUrl:[NSURL URLWithString:self.message.avatar.imageURL]];
 }
 
 -(void)drawRect:(CGRect)rect

@@ -17,7 +17,6 @@
 @interface ChatThreadController()<UITableViewDelegate,UITableViewDataSource,NSFetchedResultsControllerDelegate,UIActionSheetDelegate,MediaHandlerDelegate,ChatCellDelegate>
 @property (nonatomic,strong) NSFetchedResultsController *fetchedResultsController;
 @property (nonatomic,strong) MediaHandler *mediaHandler;
-@property BOOL isSegueInitialized;
 @property NSInteger viewImageIndex;
 @end
 
@@ -31,7 +30,6 @@
 @synthesize context = _context;
 @synthesize selfID = _selfID;
 @synthesize mediaHandler = _mediaHandler;
-@synthesize isSegueInitialized = _isSegueInitialized;
 @synthesize viewImageIndex = _viewImageIndex;
 
 
@@ -139,8 +137,6 @@
     if (!_mediaHandler.toChatJid) {
         [_mediaHandler setToChatJid:_chatWith];
     }
-    
-    _isSegueInitialized = NO;
     
     [self configure];
 }
@@ -313,24 +309,39 @@
 -(void) actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
 {
     //NSLog(@"Action SheetButton Index %d",buttonIndex);
-    if (buttonIndex == 0) {
-        [_mediaHandler takePhoto];
-    } else if (buttonIndex == 1) {
-        [_mediaHandler takeFromGallery];
+    
+    switch (buttonIndex) {
+        case 0:
+            [_mediaHandler takePhoto];
+            break;
+        case 1:
+            [_mediaHandler takeFromGallery];
+            break;
+        case 2:
+            [_mediaHandler recordSound];
+            break;
+        default:
+            break;
     }
+
 }
 
 
 
--(void) presentImagePickerController:(UINavigationController *)imagePicker
+-(void) presentMediaPickerController:(UIViewController *)mediaPicker
 {
-    [self presentModalViewController:imagePicker animated:YES];
+    [self presentModalViewController:mediaPicker animated:YES];
 }
 
 
--(void) dismissImagePicker
+-(void) dismissMediaPicker
 {
     [self dismissModalViewControllerAnimated:YES];
+}
+
+-(UIStoryboard*) mediaHandlerGetStoryBoard
+{
+    return self.storyboard;
 }
 
 
@@ -351,10 +362,8 @@
         [segue.destinationViewController setContext:self.context];
         [segue.destinationViewController setFromUsername:_chatWith];
         [segue.destinationViewController setMessage:messageObj];
-        
     }
 }
-
 
 
 @end

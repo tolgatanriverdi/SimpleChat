@@ -9,6 +9,7 @@
 #import "MediaViewController.h"
 #import <CoreData/CoreData.h>
 #import "XMPPFramework.h"
+#import <AVFoundation/AVAudioPlayer.h>
 
 @interface MediaViewController()
 @property (nonatomic,strong) NSArray *messages;
@@ -57,7 +58,28 @@
                 mediaImageView.frame = mediaImageFrame;
                 [_scrollView addSubview:mediaImageView];
                 [_images setObject:mediaImageView forKey:pageIndex];
-            }        
+            } 
+            else if (mediaMessage.type == @"audio") {
+                NSString *quickTimeIcon = [[NSBundle mainBundle] pathForResource:@"quicktime" ofType:@"png"];
+                NSData *mediaData = [NSData dataWithContentsOfFile:quickTimeIcon];
+                UIImage *mediaImage = [UIImage imageWithData:mediaData];
+                UIImageView *mediaImageView = [[UIImageView alloc] initWithImage:mediaImage];
+                CGRect mediaImageViewFrame = CGRectMake(20, 50, mediaImage.size.width,mediaImage.size.height);
+                mediaImageView.frame = mediaImageViewFrame;
+                
+                CGRect soundViewFrame = self.view.frame;
+                soundViewFrame.origin.x = (self.view.frame.size.width+imageOffset)*page;
+                CGRect buttonFrame = CGRectMake(120, 100, 50, 50);
+                UIButton *soundPlayButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+                [soundPlayButton setTitle:@"PLAY" forState:UIControlStateNormal];
+                [soundPlayButton setFrame:buttonFrame];
+                [soundPlayButton addTarget:self action:@selector(playSound) forControlEvents:UIControlEventTouchUpInside];
+                UIView *soundView = [[UIView alloc] initWithFrame:soundViewFrame];
+                [soundView addSubview:mediaImageView];
+                [soundView addSubview:soundPlayButton];
+                [_scrollView addSubview:soundView];
+                [_images setObject:soundView forKey:pageIndex];
+            }
         }
        
     }
@@ -131,6 +153,26 @@
 
 ///////////////////////////////////////////////////////
 
+-(void) playSound
+{
+    int currentPage = floor(_scrollView.contentOffset.x/self.view.frame.size.width);
+    NSLog(@"Play Sound CurrentPage: %d",currentPage);
+    if (currentPage < 0 || currentPage > [_messages count]) {
+        return;
+    }
+    
+    XMPPMessageCoreDataObject *audioMessage = [_messages objectAtIndex:currentPage];
+    
+    if (audioMessage.type == @"audio") {
+        NSLog(@"Audio Mesaji Bulundu Caliniyor");
+        AVAudioPlayer *audioPlayer = [[AVAudioPlayer alloc] initWithData:audioMessage.actualData error:nil];
+        [audioPlayer play];     
+    }
+
+
+    
+}
+
 -(void) setMessage:(XMPPMessageCoreDataObject*)message
 {
     for (int i=0;i<[_messages count];i++) 
@@ -139,7 +181,10 @@
         if ([mediaMessage isEqual:message]) 
         {
             NSLog(@"Mesaj Bulundu");
-            //[_scrollView setContentOffset:CGPointMake(_scrollView.frame.origin.x*i,_scrollView.frame.origin.y) animated:YES];
+            CGFloat scrollXOffset = self.view.frame.size.width*i;
+            if (i >0) { scrollXOffset += 20;}
+            CGRect scrollingTo = CGRectMake(scrollXOffset, self.view.frame.origin.y, self.view.frame.size.width, self.view.frame.size.height);
+            [_scrollView scrollRectToVisible:scrollingTo animated:YES];
             break;
         }
     }

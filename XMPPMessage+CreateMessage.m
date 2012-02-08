@@ -29,4 +29,24 @@
 }
 
 
+-(BOOL) isImageMessage
+{
+    BOOL result=NO;
+    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"image"]) {
+        result = YES;
+    }
+    
+    return result;
+}
+
+-(BOOL) isAudioMessage
+{
+    BOOL result=NO;
+    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"audio"]) {
+        result = YES;
+    }
+    
+    return result;    
+}
+
 @end

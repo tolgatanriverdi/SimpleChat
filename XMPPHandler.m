@@ -326,8 +326,30 @@
 -(void) transferFile:(NSString *)filePath fromUser:(XMPPJID *)userJid toUser:(NSString *)toUserJid withType:(NSString*)type
 {
     //NSLog(@"Transfering File ");
+    
+    if (type == @"audio") {  //Audio da thumbnail transfer edilmedigi icin direk db ye yaziliyor
+        
+        XMPPJID *toJid = [XMPPJID jidWithString:toUserJid];
+        XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:toJid
+                                                                      xmppStream:self.xmppStream
+                                                            managedObjectContext:[self getManagedObjectRoster]];
+        
+        NSDate* currentTime = [NSDate date];
+        NSString *thumbnailPath = [[NSBundle mainBundle] pathForResource:@"mic" ofType:@"png"];
+        NSData *thumbnailData = [NSData dataWithContentsOfFile:thumbnailPath];
+        
+        XMPPMessageCoreDataObject *messageObj = [XMPPMessageCoreDataObject insertMessageWithBody:filePath andSendDate:[currentTime description] andMessageReceipant:self.username withType:@"audio" withThumbnail:thumbnailData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
+            
+        if (messageObj) {
+            NSLog(@"Audio Mesaji DB Ye Yazilamadi");
+        }
+            
+        
+    }
+    
     self.sendingFilePath = filePath;
     NSString *remotePath = [NSString stringWithFormat:@"%@-%@",[userJid bare],[userJid resource]];
+    
     [self.ftpHandler uploadFile:self.sendingFilePath withFolder:remotePath withType:type toUser:toUserJid];
 }
 
@@ -348,6 +370,14 @@
         NSString *localDir = [NSString stringWithFormat:@"%@-%@",fromUser,self.username];
         
         [self.ftpHandler downloadFile:actualRemoteImage inFolder:localDir withType:@"image" fromUser:fromUser];
+    } else if ([[mediaContent objectForKey:@"type"] isEqualToString:@"audio"]) {
+        NSLog(@"Downloading Audioo");
+        NSString *fileName = [mediaContent objectForKey:@"fileName"];
+        NSString *fromUser = [mediaContent objectForKey:@"fromUser"];
+        NSString *remoteFileName = [self.ftpHandler getRemoteFileName:fileName];
+        NSString *localDir = [NSString stringWithFormat:@"%@-%@",fromUser,self.username];
+        
+        [self.ftpHandler downloadFile:remoteFileName inFolder:localDir withType:@"audio" fromUser:fromUser];
     }
     
 }
@@ -423,6 +453,8 @@
                                                                   xmppStream:self.xmppStream
                                                         managedObjectContext:[self getManagedObjectRoster]];
     
+    NSDate *currentTime = [NSDate date];
+    
     
 	if ([message isChatMessageWithBody])
 	{
@@ -430,7 +462,6 @@
         
 		NSString *body = [[message elementForName:@"body"] stringValue];
 		NSString *displayName = [user displayName];
-        NSDate *currentTime = [NSDate date];
         NSString *sentTime = [currentTime description];
         
         
@@ -476,7 +507,7 @@
         }
         
 	}
-    else if ([[[message attributeForName:@"type"] stringValue] isEqualToString:@"image"]) 
+    else if ([message isImageMessage]) 
     {
         
         NSString *thumbnailPath = [[message elementForName:@"thumbnail"] stringValue];
@@ -490,7 +521,37 @@
         }
         
     }
-    
+    else if ([message isAudioMessage])
+    {
+        NSString *actualDataPath = [[message elementForName:@"actualData"] stringValue];
+        NSLog(@"Audio Message Geldi ActualDataPath: %@",actualDataPath);
+        
+        if (actualDataPath) {
+            
+            //Gelen datayi local olarak nereye koyacagini ayarlar
+            NSString *localDir = [NSString stringWithFormat:@"%@-%@",user.jidStr,self.username];
+            NSString *fileName = [actualDataPath lastPathComponent];
+            NSArray *documentsTmpPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+            NSString *documentsPath = [documentsTmpPath objectAtIndex:0];
+            NSString *outputDirPath = [documentsPath stringByAppendingPathComponent:localDir];
+            NSString *fullLocalPath = [outputDirPath stringByAppendingPathComponent:fileName];
+            [self.ftpHandler addLocalFile:fullLocalPath forRemoteFile:actualDataPath];
+            
+            //Gelen dataya uygun thumbnaili ayarlar
+            NSString *thumbnailPath = [[NSBundle mainBundle] pathForResource:@"mic" ofType:@"png"];
+            NSData *thumbnailData = [NSData dataWithContentsOfFile:thumbnailPath];
+            NSString *recipantStr = [[message to] bare];
+            NSString *fromJidStr = [[message from] bare];
+            
+            //Gelen data ile ilgili bilgiyi database e yazar
+            XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:fullLocalPath andSendDate:[currentTime description] andMessageReceipant:recipantStr withType:@"audio" withThumbnail:thumbnailData withActualData:nil includingUserJid:fromJidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
+            
+            if (!messageCoreData) {
+                NSLog(@"Gelen Audio Mesaj DB ye Eklenemedi");
+            }
+            
+        }
+    }
     
         NSLog(@"Message Received From: %@",[[message from] full]);
     
@@ -597,6 +658,44 @@
     return result;
 }
 
+-(void) insertActualDataToDownloadedMessage:(NSString*)bodyMessage actualFileName:(NSString*)fileName andUsername:(NSString*)username
+{
+    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
+    request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",bodyMessage,username];
+    
+    NSError *error;
+    NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
+    
+    if ([matches count] > 0) {
+        XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
+        messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
+        
+        NSLog(@"Gercek Data Kayida Eklendi");
+    }
+    
+}
+
+-(void) insertActualDataToUploadedMessage:(NSString*)bodyMessage withActualLocalFile:(NSString*)localFileName andActualRemoteFile:(NSString*)remoteFileName includingRemoteThumb:(NSString*)remoteThumb toUserName:(NSString*)toUser andType:(NSString*)type
+{
+    XMPPJID *toUserJid = [XMPPJID jidWithString:toUser];
+    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
+    request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",bodyMessage,toUser];
+    //NSSortDescriptor *sortDesc = [NSSortDescriptor sortDescriptorWithKey:@"displayName" ascending:YES];
+    //request.sortDescriptors = [NSArray arrayWithObject:sortDesc];
+    
+    NSError *error;
+    NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
+    
+    if ([matches count] > 0) {
+        XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
+        messageCoreData.actualData = [NSData dataWithContentsOfFile:localFileName];
+        
+        //NSLog(@"Sending Remote Thumbnail: %@",remoteThumb);
+        NSLog(@"Sending Remote File: %@",remoteFileName);
+        [self sendFileMessage:remoteThumb withActualData:remoteFileName toAdress:toUserJid withType:type];
+    }  
+}
+
 -(void) ftpUploadStatusChanged:(BOOL)suceed withLocalFileName:(NSString*)fileName andRemoteFileName:(NSString*)remoteFileName andType:(NSString *)type toUser:(NSString *)userId
 {
     if (suceed) {
@@ -604,19 +703,16 @@
         XMPPUserCoreDataStorageObject *user = [self.xmppRosterStorage userForJID:toUserName
                                                                       xmppStream:self.xmppStream
                                                             managedObjectContext:[self getManagedObjectRoster]];
+        NSDate *currentTime = [NSDate date];
         
-        if (type == @"thumbnail") {
-            //NSLog(@"Thumbnail StatusChanged For FileName:%@ ToUser: %@",fileName,userId);
-            
-            
-            //NSLog(@"Thumbnail JidStr: %@ DisplayName %@",user.jidStr,user.displayName);
+        if (type == @"thumbnail") 
+        {
             if (user) {
                 NSData *thumbnailData = [NSData dataWithContentsOfFile:fileName];
-                NSDate *currentTime = [NSDate date];
                 XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:fileName andSendDate:[currentTime description] andMessageReceipant:self.username withType:@"image" withThumbnail:thumbnailData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
                 
                 if (!messageCoreData) {
-                    NSLog(@"Gonderilen Mesaj DB ye Eklenemedi");
+                    NSLog(@"Gonderilen Thumbnail DB ye Eklenemedi");
                 }
                 
                 //NSLog(@"Length Of Thumbnail: %d",[messageCoreData.thumbnail length]); 
@@ -624,13 +720,13 @@
             
 
         }
-        else if (type == @"image") {
+        else if (type == @"image") 
+        {
             
             NSString *thumb = [self getThumbnailFileNameFromFileName:fileName];
-            NSLog(@"Thumbnail For The Image Is: %@",thumb);
-            
             NSString *remoteThumb = [self getThumbnailFileNameFromFileName:remoteFileName];
-            
+           
+            /*
             NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
             request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",thumb,user.jidStr];
             //NSSortDescriptor *sortDesc = [NSSortDescriptor sortDescriptorWithKey:@"displayName" ascending:YES];
@@ -643,14 +739,26 @@
                 XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
                 messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
                 
-                NSLog(@"Sending Remote Thumbnail: %@",remoteThumb);
+                //NSLog(@"Sending Remote Thumbnail: %@",remoteThumb);
                 NSLog(@"Sending Remote File: %@",remoteFileName);
                 [self sendFileMessage:remoteThumb withActualData:remoteFileName toAdress:toUserName withType:@"image"];
-                
                 NSLog(@"Gercek Resim Thumbnailin Oldugu Kayida Eklendi");
             }
+             */
+            
+            [self insertActualDataToUploadedMessage:thumb withActualLocalFile:fileName andActualRemoteFile:remoteFileName includingRemoteThumb:remoteThumb toUserName:user.jidStr andType:@"image"];
             
         }
+        else if (type == @"audio") 
+        {
+            //NSLog(@"Audio File Uploaded");
+            [self insertActualDataToUploadedMessage:fileName withActualLocalFile:fileName andActualRemoteFile:remoteFileName includingRemoteThumb:nil toUserName:user.jidStr andType:@"audio"];
+        }
+        
+        
+        
+        //Buraya upload islemi biten dosyanin silinmesi eklenecek
+        
     }
 }
 
@@ -680,25 +788,20 @@
                 }
                 
                 
-            } else if(type == @"image") {
+            } 
+            else if(type == @"image") 
+            {
                 
                 NSString *thumb = [self getThumbnailFileNameFromFileName:fileName];
                 //NSLog(@"Thumbnail For The Image Is: %@",thumb);
                 NSLog(@"Actual ImageReceived: %@",fileName);
-                
-                
-                NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
-                request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",thumb,user.jidStr];
-                
-                NSError *error;
-                NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
-                
-                if ([matches count] > 0) {
-                    XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
-                    messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
-                    
-                    NSLog(@"Gercek Resim Thumbnailin Oldugu Kayida Eklendi");
-                }
+                [self insertActualDataToDownloadedMessage:thumb actualFileName:fileName andUsername:user.jidStr];
+            }
+            else if (type == @"audio")
+            {
+                NSLog(@"Actual AudioReceived:%@",fileName);
+                [self insertActualDataToDownloadedMessage:fileName actualFileName:fileName andUsername:user.jidStr];
+               
             }
                 
         }

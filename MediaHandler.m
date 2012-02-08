@@ -7,8 +7,13 @@
 //
 
 #import "MediaHandler.h"
+#import "AudioRecordController.h"
 
 #define IMAGE_FILE_PREFIX @"avt_image_"
+#define SOUND_FILE_PREFIX @"avt_sound_"
+
+@interface MediaHandler()<AudioRecordControllerDelegate>
+@end
 
 
 @implementation MediaHandler
@@ -42,7 +47,7 @@
             [imagePicker setSourceType:UIImagePickerControllerSourceTypeCamera];
             [imagePicker setMediaTypes:[NSArray arrayWithObject:(NSString*) kUTTypeImage]];
             [imagePicker setAllowsEditing:NO];
-            [_delegate presentImagePickerController:imagePicker];
+            [_delegate presentMediaPickerController:imagePicker];
         }
         
     }
@@ -58,9 +63,37 @@
             [imagePicker setDelegate:self];
             [imagePicker setSourceType:UIImagePickerControllerSourceTypeSavedPhotosAlbum];
             [imagePicker setMediaTypes:[NSArray arrayWithObject:(NSString*) kUTTypeImage]];
-            [_delegate presentImagePickerController:imagePicker];
+            [_delegate presentMediaPickerController:imagePicker];
         }
     }
+}
+
+
+-(void) recordSound
+{
+    NSString *folderName = [NSString stringWithFormat:@"%@-%@",_toChatJid,[_selfJid bare]];
+    NSArray *documentsDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirPath = [documentsDir objectAtIndex:0];
+    NSString *documentsFullPath = [documentsDirPath stringByAppendingPathComponent:folderName];
+    
+    if (![[NSFileManager defaultManager] fileExistsAtPath:documentsFullPath]) {
+        [[NSFileManager defaultManager] createDirectoryAtPath:documentsFullPath withIntermediateDirectories:NO attributes:nil error:nil];
+    }
+    
+    int fileCount = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:documentsFullPath error:nil] count];
+    NSString *fullFilePath = [documentsFullPath stringByAppendingPathComponent:SOUND_FILE_PREFIX];
+    NSString *fileExactPath = [NSString stringWithFormat:@"%@%d",fullFilePath,fileCount+1];
+    NSString *filePathWithExt = [fileExactPath stringByAppendingString:@".caf"];
+    
+    if ([[NSFileManager defaultManager] fileExistsAtPath:filePathWithExt]) {
+        [[NSFileManager defaultManager] removeItemAtPath:filePathWithExt error:nil];
+    }
+    
+    UIStoryboard *storyBoard = [_delegate mediaHandlerGetStoryBoard];
+    AudioRecordController *audioRecordPick = [storyBoard instantiateViewControllerWithIdentifier:@"audioRecordViewCont"];
+    [audioRecordPick setDelegate:self];
+    [audioRecordPick setRecordFilePath:filePathWithExt];
+    [_delegate presentMediaPickerController:audioRecordPick];
 }
 
 
@@ -89,6 +122,8 @@
     
 }
 
+
+////DELEGATES
 
 -(void) imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
@@ -130,12 +165,19 @@
         [self sendFile:filePathWithExt withType:@"image"];
     }
     
-    [_delegate dismissImagePicker];
+    [_delegate dismissMediaPicker];
 }
 
 -(void) imagePickerControllerDidCancel:(UIImagePickerController *)picker
 {
-    [_delegate dismissImagePicker];
+    [_delegate dismissMediaPicker];
+}
+
+
+
+-(void) audioRecordControllerSendPressed:(NSString *)fileName
+{
+    [self sendFile:fileName withType:@"audio"];
 }
 
 @end

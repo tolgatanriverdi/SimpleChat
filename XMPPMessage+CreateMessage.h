@@ -14,5 +14,7 @@
 -(void) addThumbNailPath:(NSString*)path;
 -(void) addDataPath:(NSString*)path;
 
+-(BOOL) isImageMessage;
+-(BOOL) isAudioMessage;
 
 @end

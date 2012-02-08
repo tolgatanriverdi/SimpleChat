@@ -277,6 +277,14 @@
 
 }
 
+
+-(void) addLocalFile:(NSString *)localFileName forRemoteFile:(NSString *)remoteFileName
+{
+    NSDictionary *remoteLocalDictionary = [NSDictionary dictionaryWithObjectsAndKeys:remoteFileName,localFileName, nil];
+    [_remoteLocalFileNames addObject:remoteLocalDictionary];
+}
+
+
 //EVENT HANDLING
 /////////////////////////////////////////////////////
 - (void)_stopCreateDirStream

@@ -13,8 +13,9 @@
 
 @protocol MediaHandlerDelegate
 
--(void) presentImagePickerController:(UINavigationController*)imagePicker;
--(void) dismissImagePicker;
+-(void) presentMediaPickerController:(UIViewController*)mediaPicker;
+-(void) dismissMediaPicker;
+-(UIStoryboard*) mediaHandlerGetStoryBoard;
 
 @end
 
@@ -26,6 +27,7 @@
 
 -(void) takePhoto;
 -(void) takeFromGallery;
+-(void) recordSound;
 
 
 @end
