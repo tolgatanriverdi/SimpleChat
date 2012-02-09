@@ -146,6 +146,7 @@
             [[NSFileManager defaultManager] removeItemAtPath:outputFilePath error:nil];
         }
         _downloadingFileName = outputFilePath;
+        NSLog(@"RemoteFileName: %@",_downloadingFileName);
         
         
         //Bu dictionary indirilen local dosyaya karsilik gelen remote url i tutar

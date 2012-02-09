@@ -12,11 +12,16 @@
 #import "AudioRecordController.h"
 #import <CoreLocation/CoreLocation.h>
 
+#import <AddressBook/AddressBook.h>
+#import <AddressBookUI/ABPeoplePickerNavigationController.h>
+#import <AddressBookUI/ABUnknownPersonViewController.h>
+
 #define IMAGE_FILE_PREFIX @"avt_image_"
 #define SOUND_FILE_PREFIX @"avt_sound_"
 
-@interface MediaHandler()<AudioRecordControllerDelegate,CLLocationManagerDelegate>
+@interface MediaHandler()<AudioRecordControllerDelegate,CLLocationManagerDelegate,ABPeoplePickerNavigationControllerDelegate,ABUnknownPersonViewControllerDelegate>
 @property (nonatomic,strong) CLLocationManager* locationManager;
+@property (nonatomic,strong) UIActivityIndicatorView *activityIndicator;
 @end
 
 
@@ -27,6 +32,7 @@
 @synthesize toChatJid = _toChatJid;
 @synthesize selfJid = _selfJid;
 @synthesize locationManager = _locationManager;
+@synthesize activityIndicator = _activityIndicator;
 
 -(void) sendFile:(NSString*)fileName withType:(NSString*)fileType
 {
@@ -49,6 +55,14 @@
     
     [[NSNotificationCenter defaultCenter] postNotificationName:@"coordSent" object:nil userInfo:coordCont];
     
+}
+
+-(void) sendContact:(NSMutableDictionary*)contactInfo
+{
+    NSMutableDictionary *contactCont = contactInfo;
+    [contactCont setObject:_toChatJid forKey:@"toUser"];
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"contactSent" object:nil userInfo:contactCont];
 }
 
 -(void) takePhoto
@@ -122,6 +136,18 @@
         }
         
         [_locationManager startUpdatingLocation];
+        
+        /*
+        if (!_activityIndicator) {
+            _activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+            _activityIndicator.frame=CGRectMake(145, 160, 25, 25);
+            _activityIndicator.tag = 10;
+            [_delegate presentActivityIndicator:_activityIndicator];
+        }
+        
+
+        [_activityIndicator startAnimating];
+         */
     }
     else {
         UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"GPS ERROR"
@@ -132,6 +158,53 @@
         [alertView show];
     }
     
+}
+
+-(void) shareContact
+{
+    ABPeoplePickerNavigationController *personPicker = [[ABPeoplePickerNavigationController alloc] init];
+    personPicker.peoplePickerDelegate = self;
+    [_delegate presentMediaPickerController:personPicker];
+}
+
+-(void) addContactToList:(NSString *)firstName withLastName:(NSString *)lastName andMobileNo:(NSString *)mobileNo withExtraNumber:(NSString *)extraNo
+{
+    NSLog(@"ADD To Contact List FirstName: %@ LastName:%@ MobileNo: %@ IphoneNo: %@",firstName,lastName,mobileNo,extraNo);
+    ABRecordRef newPerson = ABPersonCreate();
+    if (firstName) {
+        CFStringRef fName = (__bridge_retained CFStringRef)firstName; 
+        ABRecordSetValue(newPerson, kABPersonFirstNameProperty, fName, nil);
+    }
+    
+    if (lastName) {
+        CFStringRef lName = (__bridge_retained CFStringRef)lastName;
+        ABRecordSetValue(newPerson, kABPersonLastNameProperty, lName, nil);
+    }
+    
+    if (mobileNo || extraNo) {
+        ABMultiValueRef phoneNumbers = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+        if (mobileNo) {
+            NSLog(@"Mobile No Bulundu");
+            CFStringRef mobilNumber = (__bridge_retained CFStringRef) mobileNo; 
+            ABMultiValueIdentifier identifier;
+            ABMultiValueAddValueAndLabel(phoneNumbers, mobilNumber, kABPersonPhoneMobileLabel, &identifier);
+        }
+        
+        if (extraNo) {
+            CFStringRef extraNumber = (__bridge_retained CFStringRef) extraNo;
+            ABMultiValueIdentifier identifier;
+            ABMultiValueAddValueAndLabel(phoneNumbers, extraNumber, kABPersonPhoneIPhoneLabel, &identifier);
+        }
+        ABRecordSetValue(newPerson, kABPersonPhoneProperty, phoneNumbers, nil);
+    }
+
+
+    
+    ABUnknownPersonViewController *unknownPersonView = [[ABUnknownPersonViewController alloc] init];
+    unknownPersonView.unknownPersonViewDelegate = self;
+    unknownPersonView.displayedPerson = newPerson;
+    unknownPersonView.allowsAddingToAddressBook = YES;
+    [_delegate presentMediaResultController:unknownPersonView];
 }
 
 
@@ -166,6 +239,8 @@
 
 ////DELEGATES
 
+
+//Image picker delegates
 -(void) imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
     NSString *folderName = [NSString stringWithFormat:@"%@-%@",_toChatJid,[_selfJid bare]];
@@ -214,16 +289,75 @@
     [_delegate dismissMediaPicker];
 }
 
+//Audio delegates
 -(void) audioRecordControllerSendPressed:(NSString *)fileName
 {
     [self sendFile:fileName withType:@"audio"];
 }
 
+
+//Location delegates
 -(void) locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation
 {
     CLLocationCoordinate2D coordinates = [newLocation coordinate];
     [self sendCoordinate:coordinates.latitude andLongitude:coordinates.longitude];
     [_locationManager stopUpdatingLocation];
+    //[_activityIndicator stopAnimating];
+}
+
+
+//Adress book delegate
+-(void) peoplePickerNavigationControllerDidCancel:(ABPeoplePickerNavigationController *)peoplePicker
+{
+    [_delegate dismissMediaPicker];
+}
+
+-(BOOL) peoplePickerNavigationController:(ABPeoplePickerNavigationController *)peoplePicker shouldContinueAfterSelectingPerson:(ABRecordRef)person
+{
+    NSMutableDictionary *contactDictionary = [[NSMutableDictionary alloc] init];
+    NSString *firstName = (__bridge_transfer NSString*) ABRecordCopyValue(person, kABPersonFirstNameProperty);
+    NSString *lastName = (__bridge_transfer NSString*) ABRecordCopyValue(person, kABPersonLastNameProperty);
+    
+    
+    if (firstName) {
+        [contactDictionary setObject:firstName forKey:@"firstName"];
+    }
+    
+    if (lastName) {
+        [contactDictionary setObject:lastName forKey:@"lastName"];      
+    }
+
+    
+    //NSLog(@"FirstName: %@ LastName: %@",firstName,lastName);
+    
+    
+    ABMutableMultiValueRef mutableMultiValue = ABRecordCopyValue(person, kABPersonPhoneProperty);
+    for (CFIndex i=0;i<ABMultiValueGetCount(mutableMultiValue);i++) {
+        CFStringRef phoneLabel =  ABMultiValueCopyLabelAtIndex(mutableMultiValue, i);
+        CFStringRef phoneValue =  ABMultiValueCopyValueAtIndex(mutableMultiValue, i);
+        NSString *phoneNumber = (__bridge_transfer NSString*) phoneValue;
+        
+        if (CFStringCompare(phoneLabel, kABPersonPhoneMobileLabel, 0) == kCFCompareEqualTo) {
+
+            [contactDictionary setObject:phoneNumber forKey:@"mobileNumber"];
+        }
+        else if (CFStringCompare(phoneLabel, kABPersonPhoneIPhoneLabel, 0) == kCFCompareEqualTo) {
+            [contactDictionary setObject:phoneNumber forKey:@"iphoneNumber"];
+        }
+    }
+     
+
+    
+    CFRelease(mutableMultiValue);
+    
+    [self sendContact:contactDictionary];
+    [_delegate dismissMediaPicker];
+    return NO;
+}
+
+-(void) unknownPersonViewController:(ABUnknownPersonViewController *)unknownCardViewController didResolveToPerson:(ABRecordRef)person
+{
+    [_delegate dismissMediaResult];
 }
 
 @end

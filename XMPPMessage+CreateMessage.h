@@ -14,9 +14,12 @@
 -(void) addThumbNailPath:(NSString*)path;
 -(void) addDataPath:(NSString*)path;
 -(void) addLattitude:(double)lattitude andLongitude:(double)longitude;
+-(void) addContactFirstName:(NSString*)firstName andLastName:(NSString*)lastName;
+-(void) addContactPhoneNumbers:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo;
 
 -(BOOL) isImageMessage;
 -(BOOL) isAudioMessage;
 -(BOOL) isCoordMessage;
+-(BOOL) isContactMessage;
 
 @end

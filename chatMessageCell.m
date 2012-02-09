@@ -115,8 +115,8 @@
         _msgLabel.font = [UIFont systemFontOfSize:14.0];
         
         [messageLabel addSubview:_msgLabel];
-    } else if ([self.message.type isEqualToString:@"coordinate"]) { 
-         NSLog(@"Coordinate View Butonu Ekleniyor");
+    } else if ([self.message.type isEqualToString:@"coordinate"] || [self.message.type isEqualToString:@"contact"]) { 
+         NSLog(@"Coordinate & Contact View Butonu Ekleniyor");
         _viewDownloadButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
         _viewDownloadButton.tag = 3;
         [messageLabel addSubview:_viewDownloadButton];
@@ -138,7 +138,7 @@
     self.balloonView = (UIImageView *)[[self.contentView viewWithTag:0] viewWithTag:1];
     if ([self.message.type isEqualToString:@"chat"]) {
         self.msgLabel = (UILabel *)[[self.contentView viewWithTag:0] viewWithTag:2];
-    } else if ([self.message.type isEqualToString:@"coordinate"]) {
+    } else if ([self.message.type isEqualToString:@"coordinate"] || [self.message.type isEqualToString:@"contact"]) {
         self.viewDownloadButton = (UIButton*)[[self.contentView viewWithTag:0] viewWithTag:3];
     } else {
         if ((self.message.actualData && self.message.selfReplied) || self.message.selfReplied == [NSNumber numberWithInt:0]) {
@@ -178,7 +178,7 @@
             self.balloonView.frame = CGRectMake(5.0, 8.0, 60.0, 65.0);
             balloon = [UIImage imageWithData:self.message.thumbnail];
             
-            if (!self.message.actualData && ![self.message.type isEqualToString:@"coordinate"]) {
+            if (!self.message.actualData && ![self.message.type isEqualToString:@"coordinate"] && ![self.message.type isEqualToString:@"contact"]) {
                 //NSLog(@"Actual Data Yok");
                 self.viewDownloadButton.frame = CGRectMake(100, 34.0, 100.0, 30.0);
                 [self.viewDownloadButton setTitle:@"Download" forState:UIControlStateNormal];
@@ -211,6 +211,8 @@
         _mediaViewButtonStr = @"Play";
     } else if(_message.type == @"coordinate") { 
         _mediaViewButtonStr = @"View";
+    } else if (_message.type == @"contact") {
+        _mediaViewButtonStr = @"Add";
     } else {
         _mediaViewButtonStr = @"";
     }

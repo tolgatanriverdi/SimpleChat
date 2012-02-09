@@ -15,6 +15,10 @@
 
 -(void) presentMediaPickerController:(UIViewController*)mediaPicker;
 -(void) dismissMediaPicker;
+-(void) presentMediaResultController:(UIViewController*)mediaResult;
+-(void) dismissMediaResult;
+-(void) presentActivityIndicator:(UIActivityIndicatorView*)activityIndicator;
+-(void) dismissActivityIndicator:(NSInteger)tag;
 -(UIStoryboard*) mediaHandlerGetStoryBoard;
 
 @end
@@ -29,6 +33,8 @@
 -(void) takeFromGallery;
 -(void) recordSound;
 -(void) getLocation;
+-(void) shareContact;
+-(void) addContactToList:(NSString*)firstName withLastName:(NSString*)lastName andMobileNo:(NSString*)mobileNo withExtraNumber:(NSString*)extraNo;
 
 
 @end

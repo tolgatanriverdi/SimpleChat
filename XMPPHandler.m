@@ -72,7 +72,6 @@
     self.xmppStream = [[XMPPStream alloc] init];
     self.xmppStream.hostName = self.hostname;
     //self.xmppStream.hostName = @"192.168.3.103";
-    //self.xmppStream.myJID = @"tolga";
     
     
 
@@ -119,6 +118,7 @@
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(messageIsSending:) name:@"messageSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fileIsSending:) name:@"fileSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(coordIsSending:) name:@"coordSent" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(contactIsSending:) name:@"contactSent" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaIsDownloading:) name:@"downloadMedia" object:nil];
 }
 
@@ -198,44 +198,7 @@
 			[self.managedObjectContext_roster mergeChangesFromContextDidSaveNotification:notification];
 		});
     }
-	
-    /*
-	if (sender != managedObjectContext_capabilities &&
-	    [sender persistentStoreCoordinator] == [managedObjectContext_capabilities persistentStoreCoordinator])
-	{
-        NSLog(@"Merging Capabilitieeeeeeeess");
-		DDLogVerbose(@"%@: %@ - Merging changes into managedObjectContext_capabilities", THIS_FILE, THIS_METHOD);
-		
-		dispatch_async(dispatch_get_main_queue(), ^{
-			
-			[managedObjectContext_capabilities mergeChangesFromContextDidSaveNotification:notification];
-		});
-	}
-     */
 }
-
-/*
-- (NSManagedObjectContext *)getManagedObjectCapabilities
-{
-    NSAssert([NSThread isMainThread],
-	         @"NSManagedObjectContext is not thread safe. It must always be used on the same thread/queue");
-	
-	if (self.managedObjectContext_capabilities == nil)
-	{
-		self.managedObjectContext_capabilities = [[NSManagedObjectContext alloc] init];
-		
-		NSPersistentStoreCoordinator *psc = [self.xmppCapabilitiesStorage persistentStoreCoordinator];
-		[self.managedObjectContext_roster setPersistentStoreCoordinator:psc];
-		
-		[[NSNotificationCenter defaultCenter] addObserver:self
-		                                         selector:@selector(contextDidSave:)
-		                                             name:NSManagedObjectContextDidSaveNotification
-		                                           object:nil];
-	}
-	
-	return self.managedObjectContext_capabilities;
-}
- */
 
 /////////////////////
 
@@ -255,7 +218,7 @@
     
     [self.xmppStream setMyJID:[XMPPJID jidWithString:self.username]];
     
-    NSLog(@"XMPPHandler Conenct Username: %@",self.username);
+    NSLog(@"XMPPHandler Connect Username: %@",self.username);
     
     NSError *error = nil;
     if (![self.xmppStream connect:&error]) {
@@ -327,6 +290,31 @@
 {
     NSDictionary *coordContent = [notification userInfo];
     [self sendCoordinateMessage:[[coordContent valueForKey:@"lat"] doubleValue] andLongitude:[[coordContent valueForKey:@"lon"] doubleValue] toUser:[coordContent valueForKey:@"toUser"]];
+    
+}
+
+-(void) sendContactMessage:(NSString*)firstName andLastName:(NSString*)lastName withMobilePhoneNumber:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo toUser:(NSString*)userId
+{
+    XMPPJID *toJid = [XMPPJID jidWithString:userId];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"contact" to:toJid];
+    [newMessage addContactFirstName:firstName andLastName:lastName];
+    [newMessage addContactPhoneNumbers:mobileNo andIphoneNumber:iphoneNo];
+    
+    [self.xmppStream sendElement:newMessage];
+}
+
+
+-(void) contactIsSending:(NSNotification*)notification
+{
+    NSDictionary *contactContent = [notification userInfo];
+    NSString *firstName = [contactContent objectForKey:@"firstName"];
+    NSString *lastName = [contactContent objectForKey:@"lastName"];
+    NSString *mobileNumber = [contactContent objectForKey:@"mobileNumber"];
+    NSString *iphoneNumber = [contactContent objectForKey:@"iphoneNumber"];
+    NSString *toUser = [contactContent objectForKey:@"toUser"];
+    
+    [self sendContactMessage:firstName andLastName:lastName withMobilePhoneNumber:mobileNumber andIphoneNumber:iphoneNumber toUser:toUser];
+
     
 }
 
@@ -587,8 +575,30 @@
         }
         
     }
+    else if ([message isContactMessage])
+    {
+        NSLog(@"Contact Mesaj Geldi");
+        NSString *firstName = [[message elementForName:@"contactFirstName"] stringValue];
+        NSString *lastName = [[message elementForName:@"contactLastName"] stringValue];
+        NSString *mobileNo = [[message elementForName:@"mobilePhoneNo"] stringValue];
+        NSString *iphoneNo = [[message elementForName:@"iphonePhoneNo"] stringValue];
+        NSString *messageStr = [NSString stringWithFormat:@"%@,%@,%@,%@",firstName,lastName,mobileNo,iphoneNo];
+        
+        NSString *recipantStr = [[message to] bare];
+        NSString *fromJidStr = [[message from] bare];
+        
+        NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"adressbook" ofType:@"png"];
+        NSData *iconData = [NSData dataWithContentsOfFile:iconPath];
+        
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:messageStr andSendDate:[currentTime description] andMessageReceipant:recipantStr withType:@"contact" withThumbnail:iconData withActualData:nil includingUserJid:fromJidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:0]];
+        
+        if (!messageCoreData) {
+            NSLog(@"Gelen Contact Mesaj DB ye Eklenemedi");
+        }
+        
+    }
     
-        NSLog(@"Message Received From: %@",[[message from] full]);
+    NSLog(@"Message Received From: %@",[[message from] full]);
     
 }
 
@@ -637,6 +647,24 @@
         
         if (!messageCoreData) {
             NSLog(@"Gonderilen Coord Mesaj DB Ye Eklenemedi");
+        }
+        
+    }
+    else if ([message isContactMessage])
+    {
+        NSString *firstName = [[message elementForName:@"firstName"] stringValue];
+        NSString *lastName = [[message elementForName:@"lastName"] stringValue];
+        NSString *mobileNo = [[message elementForName:@"mobilePhoneNo"] stringValue];
+        NSString *iphoneNo = [[message elementForName:@"iphonePhoneNo"] stringValue];
+        NSString *messageStr = [NSString stringWithFormat:@"%@,%@,%@,%@",firstName,lastName,mobileNo,iphoneNo];
+        
+        NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"adressbook" ofType:@"png"];
+        NSData *iconData = [NSData dataWithContentsOfFile:iconPath];
+        
+        XMPPMessageCoreDataObject *messageCoreData = [XMPPMessageCoreDataObject insertMessageWithBody:messageStr andSendDate:sentTime andMessageReceipant:self.username withType:@"contact" withThumbnail:iconData withActualData:nil includingUserJid:user.jidStr andUserDisplay:user.displayName inManagedObjectContext:[self getmanagedObjectMessage] withSelfRepliedStatus:[NSNumber numberWithInt:1]];
+        
+        if (!messageCoreData) {
+            NSLog(@"Gonderilen Contact Mesaj DB ye Eklenemedi");
         }
         
     }

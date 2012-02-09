@@ -321,6 +321,7 @@
             [_mediaHandler recordSound];
             break;
         case 3:
+            [_mediaHandler shareContact];
             break;
         case 4:
             [_mediaHandler getLocation];
@@ -344,6 +345,29 @@
     [self dismissModalViewControllerAnimated:YES];
 }
 
+-(void) presentMediaResultController:(UIViewController *)mediaResult
+{
+    [self.navigationController pushViewController:mediaResult animated:YES];
+}
+
+-(void) dismissMediaResult
+{
+    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
+}
+
+-(void) presentActivityIndicator:(UIActivityIndicatorView *)activityIndicator
+{
+    [self.view addSubview:activityIndicator];
+}
+
+-(void) dismissActivityIndicator:(NSInteger)tag
+{
+    UIActivityIndicatorView *av = (UIActivityIndicatorView*) [self.view viewWithTag:tag];
+    if (av) {
+        [av removeFromSuperview];
+    }
+}
+
 -(UIStoryboard*) mediaHandlerGetStoryBoard
 {
     return self.storyboard;
@@ -357,6 +381,10 @@
     _selectedMessageToView = selectedMessage;
     if (_selectedMessageToView.type == @"coordinate") {
         [self performSegueWithIdentifier:@"mapSegue" sender:self];
+    } else if (_selectedMessageToView.type == @"contact") {
+        NSString *messageBody = _selectedMessageToView.body;
+        NSArray *contactInfo = [messageBody componentsSeparatedByString:@","];
+        [_mediaHandler addContactToList:[contactInfo objectAtIndex:0] withLastName:[contactInfo objectAtIndex:1] andMobileNo:[contactInfo objectAtIndex:2] withExtraNumber:[contactInfo objectAtIndex:3]];
     } else {
         [self performSegueWithIdentifier:@"mediaViewSegue" sender:self];
     }

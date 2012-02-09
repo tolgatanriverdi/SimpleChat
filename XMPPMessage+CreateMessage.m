@@ -38,6 +38,21 @@
     [self addChild:lonElement];
 }
 
+-(void) addContactFirstName:(NSString *)firstName andLastName:(NSString *)lastName
+{
+    NSXMLElement *firstNameElement = [NSXMLElement elementWithName:@"contactFirstName" stringValue:firstName];
+    [self addChild:firstNameElement];
+    NSXMLElement *lastNameElement = [NSXMLElement elementWithName:@"contactLastname" stringValue:lastName];
+    [self addChild:lastNameElement];
+}
+
+-(void) addContactPhoneNumbers:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo
+{
+    NSXMLElement *mobilePhoneElement = [NSXMLElement elementWithName:@"mobilePhoneNo" stringValue:mobileNo];
+    [self addChild:mobilePhoneElement];
+    NSXMLElement *iphonePhoneElement = [NSXMLElement elementWithName:@"iphonePhoneNo" stringValue:iphoneNo];
+    [self addChild:iphonePhoneElement];
+}
 
 
 /////////////////////////////////////
@@ -72,6 +87,17 @@
     }
     
     return result;
+}
+
+-(BOOL) isContactMessage
+{
+    BOOL result=NO;
+    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"contact"])
+    {
+        result = YES;
+    }
+    
+    return result;    
 }
 
 @end
