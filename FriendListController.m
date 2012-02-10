@@ -208,11 +208,13 @@
     if (user) {
         cell.textLabel.text = user.displayName;
         cell.imageView.image = [UIImage imageNamed:@"defaultPerson"];
+        cell.detailTextLabel.text = user.primaryResource.presence.status;
 
     
+        /*
         if (self.friendsPresenceStatus) {
-            NSString *presenceStatus = [self.friendsPresenceStatus objectForKey:user.jidStr];
-        
+            //NSString *presenceStatus = [self.friendsPresenceStatus objectForKey:user.jidStr];
+            NSString *presenceStatus = user.primaryResource.presence.status;
             if (presenceStatus) {
                 cell.detailTextLabel.text = presenceStatus;
             }   
@@ -220,6 +222,7 @@
         else {
             cell.detailTextLabel.text = @"Bilinmiyor";
         }
+         */
     }
 
     

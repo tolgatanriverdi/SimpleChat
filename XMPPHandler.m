@@ -266,7 +266,8 @@
 -(void) sendMessage:(NSString*)messageBody toAdress:(NSString*)to withType:(NSString*)type
 {
     XMPPJID *toJid = [XMPPJID jidWithString:to];
-    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:toJid];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"chat" to:toJid];
+    [newMessage addSubjectToMessage:type];
     [newMessage addBodyToMessage:messageBody];
     
     [self.xmppStream sendElement:newMessage];
@@ -281,7 +282,8 @@
 -(void) sendCoordinateMessage:(double)lattitude andLongitude:(double)longitude toUser:(NSString*)to
 {
     XMPPJID *toJid = [XMPPJID jidWithString:to];
-    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"coordinate" to:toJid];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"chat" to:toJid];
+    [newMessage addSubjectToMessage:@"coordinate"];
     [newMessage addLattitude:lattitude andLongitude:longitude];
     [self.xmppStream sendElement:newMessage];
 }
@@ -296,9 +298,9 @@
 -(void) sendContactMessage:(NSString*)firstName andLastName:(NSString*)lastName withMobilePhoneNumber:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo toUser:(NSString*)userId
 {
     XMPPJID *toJid = [XMPPJID jidWithString:userId];
-    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"contact" to:toJid];
-    [newMessage addContactFirstName:firstName andLastName:lastName];
-    [newMessage addContactPhoneNumbers:mobileNo andIphoneNumber:iphoneNo];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"chat" to:toJid];
+    [newMessage addSubjectToMessage:@"contact"];
+    [newMessage addContactFirstName:firstName andLastName:lastName andMobilePhone:mobileNo andIphoneNo:iphoneNo];
     
     [self.xmppStream sendElement:newMessage];
 }
@@ -320,9 +322,9 @@
 
 -(void) sendFileMessage:(NSString*)thumbnailUrl withActualData:(NSString*)actualDataUrl toAdress:(XMPPJID*)toUser withType:(NSString*)type
 {
-    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:type to:toUser];
-    [newMessage addThumbNailPath:thumbnailUrl];
-    [newMessage addDataPath:actualDataUrl];
+    XMPPMessage *newMessage = [[XMPPMessage alloc] initWithType:@"chat" to:toUser];
+    [newMessage addSubjectToMessage:type];
+    [newMessage addThumbNailPath:thumbnailUrl withActualDataPath:actualDataUrl];
     
     [self.xmppStream sendElement:newMessage];
 }
@@ -400,7 +402,7 @@
     
     NSError *error;
     if ([self.xmppStream authenticateWithPassword:self.password error:&error]) {
-        NSLog(@"Authentication Basladi Uname: %@ Pass: %@ ",self.username,self.password);
+        //NSLog(@"Authentication Basladi Uname: %@ Pass: %@ ",self.username,self.password);
     } 
 }
 
@@ -416,7 +418,7 @@
 }
 
 -(void)xmppStreamDidAuthenticate:(XMPPStream *)sender {
-    NSLog(@"Authentication Basarili");
+    //NSLog(@"Authentication Basarili");
     NSLog(@"ISConnection Secured %d",sender.isSecure);
     [self goOnline];
     [self.delegate setXMPPHandlerConnectionStatus:YES];
@@ -424,7 +426,8 @@
 
 -(void) xmppStream:(XMPPStream *)sender didReceivePresence:(XMPPPresence *)presence
 {
-    NSLog(@"Presence Received From: %@ Type: %@",[presence fromStr],[presence type]);
+    /*
+    //NSLog(@"Presence Received From: %@ Type: %@",[presence fromStr],[presence type]);
     NSString *status=@"Unknown";
     if (!presence.status) {
         NSLog(@"Presence Status Nil");
@@ -435,6 +438,7 @@
         
     }
     [self.delegate presenceStatusChanged:presence.from withStatus:status];
+     */
 }
 
 - (void)xmppRoster:(XMPPRoster *)sender didReceiveBuddyRequest:(XMPPPresence *)presence
@@ -460,7 +464,7 @@
     NSDate *currentTime = [NSDate date];
     
     
-	if ([message isChatMessageWithBody])
+	if ([message isActualChatMessage])
 	{
         NSLog(@"Chat Message Geldi");
         
@@ -513,9 +517,9 @@
 	}
     else if ([message isImageMessage]) 
     {
-        
-        NSString *thumbnailPath = [[message elementForName:@"thumbnail"] stringValue];
-        NSString *actualDataPath = [[message elementForName:@"actualData"] stringValue];
+        NSArray *imageMessage = [message getFileMessageContent];
+        NSString *thumbnailPath = [imageMessage objectAtIndex:0];
+        NSString *actualDataPath = [imageMessage objectAtIndex:1];
         NSLog(@"Image Message Geldi Thumbnail: %@  ActualData: %@",thumbnailPath,actualDataPath);
         
         if (thumbnailPath && actualDataPath) 
@@ -527,7 +531,8 @@
     }
     else if ([message isAudioMessage])
     {
-        NSString *actualDataPath = [[message elementForName:@"actualData"] stringValue];
+        NSArray *audioMessage = [message getFileMessageContent];
+        NSString *actualDataPath = [audioMessage objectAtIndex:1];
         //NSLog(@"Audio Message Geldi ActualDataPath: %@",actualDataPath);
         
         if (actualDataPath) {
@@ -559,8 +564,9 @@
     else if ([message isCoordMessage])
     {
         NSLog(@"Coordinate Mesaj Geldi");
-        NSString *latStr = [[message elementForName:@"lattitude"] stringValue];
-        NSString *lonStr = [[message elementForName:@"longitude"] stringValue];
+        NSArray *coordMessage = [message getCoordMessageContent];
+        NSString *latStr = [coordMessage objectAtIndex:0];
+        NSString *lonStr = [coordMessage objectAtIndex:1];
         NSString *messageStr = [latStr stringByAppendingFormat:@",%@",lonStr];
         NSString *recipantStr = [[message to] bare];
         NSString *fromJidStr = [[message from] bare];
@@ -578,10 +584,11 @@
     else if ([message isContactMessage])
     {
         NSLog(@"Contact Mesaj Geldi");
-        NSString *firstName = [[message elementForName:@"contactFirstName"] stringValue];
-        NSString *lastName = [[message elementForName:@"contactLastName"] stringValue];
-        NSString *mobileNo = [[message elementForName:@"mobilePhoneNo"] stringValue];
-        NSString *iphoneNo = [[message elementForName:@"iphonePhoneNo"] stringValue];
+        NSArray *contactMessage = [message getContactMessageContent];
+        NSString *firstName = [contactMessage objectAtIndex:0];
+        NSString *lastName = [contactMessage objectAtIndex:1];
+        NSString *mobileNo = [contactMessage objectAtIndex:2];
+        NSString *iphoneNo = [contactMessage objectAtIndex:3];
         NSString *messageStr = [NSString stringWithFormat:@"%@,%@,%@,%@",firstName,lastName,mobileNo,iphoneNo];
         
         NSString *recipantStr = [[message to] bare];
@@ -614,7 +621,7 @@
     NSString *sentTime = [currentTime description];
     
     
-    if ([message isChatMessage]) {
+    if ([message isActualChatMessage]) {
         
         
         //Alttaki iki satir direk jid stringi aldigimizda gelen sacma karakterleri elemine etmek icindir
@@ -636,8 +643,9 @@
     }
     else if ([message isCoordMessage]) {
         
-        NSString *latStr = [[message elementForName:@"lattitude"] stringValue];
-        NSString *lonStr = [[message elementForName:@"longitude"] stringValue];
+        NSArray *coordMessage = [message getCoordMessageContent];
+        NSString *latStr = [coordMessage objectAtIndex:0];
+        NSString *lonStr = [coordMessage objectAtIndex:1];
         NSString *messageStr = [latStr stringByAppendingFormat:@",%@",lonStr];
         
         NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"googlemaps" ofType:@"png"];
@@ -652,10 +660,11 @@
     }
     else if ([message isContactMessage])
     {
-        NSString *firstName = [[message elementForName:@"firstName"] stringValue];
-        NSString *lastName = [[message elementForName:@"lastName"] stringValue];
-        NSString *mobileNo = [[message elementForName:@"mobilePhoneNo"] stringValue];
-        NSString *iphoneNo = [[message elementForName:@"iphonePhoneNo"] stringValue];
+        NSArray *contactMessage = [message getCoordMessageContent];
+        NSString *firstName = [contactMessage objectAtIndex:0];
+        NSString *lastName = [contactMessage objectAtIndex:1];
+        NSString *mobileNo = [contactMessage objectAtIndex:2];
+        NSString *iphoneNo = [contactMessage objectAtIndex:3];
         NSString *messageStr = [NSString stringWithFormat:@"%@,%@,%@,%@",firstName,lastName,mobileNo,iphoneNo];
         
         NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"adressbook" ofType:@"png"];

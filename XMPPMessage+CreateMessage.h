@@ -10,16 +10,21 @@
 
 @interface XMPPMessage (CreateMessage)
 
+-(void) addSubjectToMessage:(NSString*)subject;
 -(void) addBodyToMessage:(NSString *)bodyMessage;
--(void) addThumbNailPath:(NSString*)path;
--(void) addDataPath:(NSString*)path;
+-(void) addThumbNailPath:(NSString*)thumbnailPath withActualDataPath:(NSString*)dataPath;
 -(void) addLattitude:(double)lattitude andLongitude:(double)longitude;
--(void) addContactFirstName:(NSString*)firstName andLastName:(NSString*)lastName;
--(void) addContactPhoneNumbers:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo;
+-(void) addContactFirstName:(NSString*)firstName andLastName:(NSString*)lastName andMobilePhone:(NSString*)mobilePhone andIphoneNo:(NSString*)iphoneNo;
+
+
+-(NSArray*) getFileMessageContent;
+-(NSArray*) getCoordMessageContent;
+-(NSArray*) getContactMessageContent;
 
 -(BOOL) isImageMessage;
 -(BOOL) isAudioMessage;
 -(BOOL) isCoordMessage;
 -(BOOL) isContactMessage;
+-(BOOL) isActualChatMessage;
 
 @end

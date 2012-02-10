@@ -43,9 +43,11 @@
     
     NSNumber *pageIndex = [NSNumber numberWithInt:page];
     int imageOffset=0;
+    /*
     if (page > 0) {
         imageOffset = 20;
     }
+     */
     
     if (!_images) {
             _images = [[NSMutableDictionary alloc] init];
@@ -60,7 +62,7 @@
             if (mediaMessage.type == @"image") {
                 UIImage *mediaImage = [UIImage imageWithData:mediaMessage.actualData];
                 UIImageView *mediaImageView = [[UIImageView alloc] initWithImage:mediaImage];
-                CGRect mediaImageFrame = _scrollView.frame;
+                CGRect mediaImageFrame = self.view.frame;
                 mediaImageFrame.origin.x = (self.view.frame.size.width+imageOffset)*page;
                 mediaImageView.frame = mediaImageFrame;
                 [_scrollView addSubview:mediaImageView];
@@ -103,6 +105,7 @@
 
 -(void) setFromUsername:(NSString *)fromUsername
 {
+    int pageOffset = 0;  //20 Olacak
     _fromUsername = fromUsername;
     //XMPPJID *fromJid = [XMPPJID jidWithString:userId];
     
@@ -126,7 +129,7 @@
     
     if (!_scrollView) {
         _scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height)];
-        _scrollView.contentSize = CGSizeMake((self.view.frame.size.width+20)*[_messages count], self.view.frame.size.height);
+        _scrollView.contentSize = CGSizeMake((self.view.frame.size.width+pageOffset)*[_messages count], self.view.frame.size.height);
         _scrollView.showsHorizontalScrollIndicator = NO;
         _scrollView.showsVerticalScrollIndicator = NO;
         _scrollView.pagingEnabled = YES;

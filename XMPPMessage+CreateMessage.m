@@ -10,94 +10,114 @@
 
 @implementation XMPPMessage (CreateMessage)
 
+-(void) addSubjectToMessage:(NSString*)subject
+{
+    NSXMLElement *subjectElement = [NSXMLElement elementWithName:@"subject" stringValue:subject];
+    [self addChild:subjectElement];
+}
+
 -(void) addBodyToMessage:(NSString *)bodyMessage
 {
     NSXMLElement *bodyElement = [NSXMLElement elementWithName:@"body" stringValue:bodyMessage];
     [self addChild:bodyElement];
 }
 
--(void) addThumbNailPath:(NSString *)path
+-(void) addThumbNailPath:(NSString *)thumbnailPath withActualDataPath:(NSString *)dataPath
 {
-    NSXMLElement *thumbnailElement = [NSXMLElement elementWithName:@"thumbnail" stringValue:path];
-    [self addChild:thumbnailElement];
-}
-
--(void) addDataPath:(NSString *)path
-{
-    NSXMLElement *actualData = [NSXMLElement elementWithName:@"actualData" stringValue:path];
-    [self addChild:actualData];
+    NSString *bodyStr = [NSString stringWithFormat:@"%@,%@",thumbnailPath,dataPath];
+    [self addBodyToMessage:bodyStr];
 }
 
 -(void) addLattitude:(double)lattitude andLongitude:(double)longitude
 {
     NSString *latStr = [NSString stringWithFormat:@"%f",lattitude];
     NSString *lonStr = [NSString stringWithFormat:@"%f",longitude];
-    NSXMLElement *latElement = [NSXMLElement elementWithName:@"lattitude" stringValue:latStr];
-    [self addChild:latElement];
-    NSXMLElement *lonElement = [NSXMLElement elementWithName:@"longitude" stringValue:lonStr];
-    [self addChild:lonElement];
+    NSString *bodyStr = [NSString stringWithFormat:@"%@,%@",latStr,lonStr];
+    [self addBodyToMessage:bodyStr];
 }
 
--(void) addContactFirstName:(NSString *)firstName andLastName:(NSString *)lastName
+-(void) addContactFirstName:(NSString *)firstName andLastName:(NSString *)lastName andMobilePhone:(NSString *)mobilePhone andIphoneNo:(NSString *)iphoneNo
 {
-    NSXMLElement *firstNameElement = [NSXMLElement elementWithName:@"contactFirstName" stringValue:firstName];
-    [self addChild:firstNameElement];
-    NSXMLElement *lastNameElement = [NSXMLElement elementWithName:@"contactLastname" stringValue:lastName];
-    [self addChild:lastNameElement];
+    NSString *bodyStr = [NSString stringWithFormat:@"%@,%@,%@,%@",firstName,lastName,mobilePhone,iphoneNo];
+    [self addBodyToMessage:bodyStr];
+}
+/////////////////////////////////////
+
+-(NSString*) getBodyString
+{
+    NSArray *elements = [self elementsForName:@"body"];
+    if ([elements count] > 0) {
+        NSXMLElement *element = [elements objectAtIndex:0];
+        return [element stringValue];
+    }    
+    
+    return nil;
 }
 
--(void) addContactPhoneNumbers:(NSString*)mobileNo andIphoneNumber:(NSString*)iphoneNo
+-(NSArray*) getFileMessageContent
 {
-    NSXMLElement *mobilePhoneElement = [NSXMLElement elementWithName:@"mobilePhoneNo" stringValue:mobileNo];
-    [self addChild:mobilePhoneElement];
-    NSXMLElement *iphonePhoneElement = [NSXMLElement elementWithName:@"iphonePhoneNo" stringValue:iphoneNo];
-    [self addChild:iphonePhoneElement];
+    NSString *fileStr = [self getBodyString];
+    NSArray *fileContent = [fileStr componentsSeparatedByString:@","];
+    
+    return fileContent;
+}
+
+-(NSArray*) getContactMessageContent
+{
+    NSString *contactStr = [self getBodyString];
+    NSArray *contactContent = [contactStr componentsSeparatedByString:@","];
+    
+    return contactContent;    
+}
+
+-(NSArray*) getCoordMessageContent
+{
+    NSString *coordStr = [self getBodyString];
+    NSArray *coordContent = [coordStr componentsSeparatedByString:@","];
+    
+    return coordContent;
 }
 
 
 /////////////////////////////////////
 
 
--(BOOL) isImageMessage
+-(BOOL) getSubject:(NSString*)stringVal
 {
-    BOOL result=NO;
-    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"image"]) {
-        result = YES;
+    NSArray *elements = [self elementsForName:@"subject"];
+    if ([elements count] > 0) {
+        NSXMLElement *element = [elements objectAtIndex:0];
+        if ([[element stringValue] isEqualToString:stringVal]) {
+            return YES;
+        }
     }
     
-    return result;
+    return NO;
+}
+
+-(BOOL) isImageMessage
+{
+    return [self getSubject:@"image"];
 }
 
 -(BOOL) isAudioMessage
 {
-    BOOL result=NO;
-    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"audio"]) {
-        result = YES;
-    }
-    
-    return result;    
+    return [self getSubject:@"audio"];    
 }
 
 -(BOOL) isCoordMessage
 {
-    BOOL result=NO;
-    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"coordinate"])
-    {
-        result = YES;
-    }
-    
-    return result;
+    return [self getSubject:@"coordinate"];
 }
 
 -(BOOL) isContactMessage
 {
-    BOOL result=NO;
-    if ([[[self attributeForName:@"type"] stringValue] isEqualToString:@"contact"])
-    {
-        result = YES;
-    }
-    
-    return result;    
+    return [self getSubject:@"contact"];
+}
+
+-(BOOL) isActualChatMessage
+{
+    return [self getSubject:@"chat"];
 }
 
 @end

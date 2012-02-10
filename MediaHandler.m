@@ -263,8 +263,8 @@
     }
     
     
-    UIGraphicsBeginImageContext(CGSizeMake(960.0, 640.0));
-    [image drawInRect:CGRectMake(0.0, 0.0, 960.0, 640.0)];
+    UIGraphicsBeginImageContext(CGSizeMake(320.0, 480.0));
+    [image drawInRect:CGRectMake(0.0, 0.0, 320.0, 480.0)];
     UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     
