@@ -74,8 +74,8 @@
     [self.statusText resignFirstResponder];
     
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-    NSLog(@"USERDEFAULT: %@",self.statusText.text);
     [prefs setObject:self.statusText.text forKey:@"avatarChatStatus"];
+    //NSLog(@"USERDEFAULT: %@",self.statusText.text);
     [[NSNotificationCenter defaultCenter] postNotificationName:@"saveStatus" object:self];
     
     [self dismissModalViewControllerAnimated:YES];

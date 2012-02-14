@@ -38,8 +38,8 @@ avClient* _avClient = nil;
 
 -(void) login 
 {
-    NSString* username = [[NSUserDefaults standardUserDefaults] objectForKey:@"username"];
-    NSString* password = [[NSUserDefaults standardUserDefaults] objectForKey:@"password"];
+    NSString* username = [[NSUserDefaults standardUserDefaults] objectForKey:@"twinChatUsername"];
+    NSString* password = [[NSUserDefaults standardUserDefaults] objectForKey:@"twinChatPassword"];
     if (!(username && password)) {
         [self.delegate loginDidFail];
     } else {
@@ -100,9 +100,7 @@ avClient* _avClient = nil;
 
 @implementation avClientTask
 
-@synthesize delegate = _delegate;
-@synthesize payload = _payload;
-@synthesize request = _request;
+@synthesize delegate, payload, request;
 
 -(BOOL) requireLogin 
 {
@@ -117,45 +115,41 @@ avClient* _avClient = nil;
 -(id)init
 {
     if ((self = [super init])) {
-        _delegate = nil;
-        _payload = [NSMutableDictionary dictionary];
+        delegate = nil;
+        payload = [NSMutableDictionary dictionary];
     }
     return self;
 }
 
 -(void)dealloc
 {
-    [self.request clearDelegatesAndCancel];
+    [self.request clearDelegatesAndCancel];    
     NSLog(@"dealloc task!");
 }
 
 
 -(NSString*) payloadXML 
 {
-    
     NSMutableString* string =[NSMutableString string] ;
-    for (NSString* key in [_payload allKeys]) {
-        if ([key isEqualToString:@"username"]) {
-            [string appendFormat:@"<%@>+90%@</%@>", key, [_payload objectForKey:key], key];
-        } else
-            [string appendFormat:@"<%@>%@</%@>", key, [_payload objectForKey:key], key];
+    for (NSString* key in [payload allKeys]) {
+        [string appendFormat:@"<%@>%@</%@>", key, [payload objectForKey:key], key];
     }
     return string;
 }
 
 -(ASIHTTPRequest *)createRequest
 {
-    [_request clearDelegatesAndCancel];
-    _request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@", CLIENT_BASE_URL, [self url]]]];
-    [_request setDelegate:self];
-    [_request addRequestHeader:@"Content-Type" value:@"application/xml"];
-    [_request addRequestHeader:@"Accept" value:@"application/xml, text/plain, text/xml, text/html"];
-    return _request;
+    [self.request clearDelegatesAndCancel];
+    self.request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"%@%@", CLIENT_BASE_URL, [self url]]]];
+    [request setDelegate:self];
+    [request addRequestHeader:@"Content-Type" value:@"application/xml"];
+    [request addRequestHeader:@"Accept" value:@"application/xml, text/plain, text/xml, text/html"];
+    return request;
 }
 
-- (void)requestFinished:(ASIHTTPRequest *)_req
+- (void)requestFinished:(ASIHTTPRequest *)_request
 {
-    NSString *responseString = [self.request responseString];
+    NSString *responseString = [request responseString];
     BOOL error = [responseString rangeOfString:@"Error"].location != NSNotFound;
     if (!error) {
         if ([responseString rangeOfString:@"Login Dialog"].location != NSNotFound) {
@@ -164,17 +158,17 @@ avClient* _avClient = nil;
         }
     }
     NSLog(@"%@", responseString);
-    if (!error && [self processResponse:_req]) {    
+    if (!error && [self processResponse:_request]) {    
         [self.delegate taskDidSucceed: self];
         [[avClient shared] taskIsDone: self];        
     } else {
-        [self requestFailed:_req];
+        [self requestFailed:_request];
     }
 }
 
-- (void)requestFailed:(ASIHTTPRequest *)_req
+- (void)requestFailed:(ASIHTTPRequest *)_request
 {
-    NSError *error = [_request error];
+    NSError *error = [request error];
     NSLog(@"%@", error);  
     if ([self.delegate respondsToSelector:@selector(taskDidFail:)]) {
         [self.delegate taskDidFail:self];
@@ -182,12 +176,13 @@ avClient* _avClient = nil;
     [[avClient shared] taskIsDone: self];    
 }
 
--(BOOL) processResponse:(ASIHTTPRequest *)_req
+-(BOOL) processResponse:(ASIHTTPRequest *)_request
 {
     return YES;
 }
 
 @end
+
 
 @implementation avRegisterTask 
 
@@ -205,7 +200,7 @@ avClient* _avClient = nil;
 {
     ASIHTTPRequest* request = [super createRequest];
     NSString* body = [NSString stringWithFormat: 
-        @"<?xml version=\"1.0\" encoding=\"ISO-8859-9\" standalone=\"yes\"?><user>%@</user>\n", 
+                      @"<?xml version=\"1.0\" encoding=\"ISO-8859-9\" standalone=\"yes\"?><user>%@</user>\n", 
                       [self payloadXML]];
     [request appendPostData: [body dataUsingEncoding: NSUTF8StringEncoding]];
     request.requestMethod = @"POST";    
@@ -369,34 +364,30 @@ avClient* _avClient = nil;
     NSMutableString* emails = [NSMutableString string];
     NSMutableString* phones = [NSMutableString string];
     
-    for (NSString* email in contact.emailAddresses) {
-        [emails appendFormat:@"<emailaddress>%@</emailaddress>", email];
-    }
     for (NSString* phone in contact.phoneNumbers) {
         NSString *fphone = [[phone componentsSeparatedByCharactersInSet:
-                                [[NSCharacterSet decimalDigitCharacterSet] invertedSet]] 
-                               componentsJoinedByString:@""];
+                              [[NSCharacterSet decimalDigitCharacterSet] invertedSet]] 
+                             componentsJoinedByString:@""];
         if (fphone.length > 10) {
             fphone = [fphone substringFromIndex:fphone.length-10];            
         }
         [phones appendFormat:@"<phonenumber>+90%@</phonenumber>", fphone];
     }
-
+    
     return [NSString stringWithFormat:@" "
             "<contact>"
-                "<emailaddresses>"
-                    "%@"
-                "</emailaddresses>"
-                "<id>%d</id>"
-                "<name>%@</name>"
-                "<phonenumbers>"
-                    "%@"
-                "</phonenumbers>"
-                "<surname>%@</surname>"
+            "<emailaddresses>"
+            "%@"
+            "</emailaddresses>"
+            "<id>%d</id>"
+            "<name>%@</name>"
+            "<phonenumbers>"
+            "%@"
+            "</phonenumbers>"
+            "<surname>%@</surname>"
             "</contact>", emails, contact.abId, 
-                contact.fullName ? contact.fullName : @"", 
-                phones, contact.lastName ? contact.lastName: @""
-    ];    
+            (contact.fullName ? contact.fullName : @""), 
+            phones, (contact.lastName ? contact.lastName: @"")];    
 }
 
 -(NSString*) addressBookXML 
@@ -421,23 +412,22 @@ avClient* _avClient = nil;
 }
 
 -(BOOL)processResponse:(ASIHTTPRequest *)request
-{
-//    NSString *responseString = [request responseString];
-//    NSLog(@"%@", responseString);    
-    NSArray* contacts = [avContactModel all];
+{  
+    NSMutableArray* contacts = [[NSMutableArray alloc] initWithArray:[avContactModel all]];
     RXMLElement* element = [RXMLElement elementFromXMLString:request.responseString];
     [element iterate:@"addressBookResponseFormat" with:^(RXMLElement *e) {
         int abId = [e child:@"contactId"].textAsInt;
         for (avContactModel* contact in contacts) {
             if (contact.abId == abId) {
-                [contact setIsAvatarUser:YES];
+                contact.isAvatarUser = YES;
                 break;
             }
         }
     }];
-    [[NSNotificationCenter defaultCenter] 
-        postNotificationName:@"UpdateContacts" 
-        object:nil];    
+    
+    NSDictionary *processedContacts = [NSDictionary dictionaryWithObject:contacts forKey:@"processedContacts"];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"UpdateContacts" object:nil userInfo:processedContacts]; 
+    
     return YES;
 }
 

@@ -14,6 +14,9 @@
 #import "XMPPMessageUserCoreDataObject+Update.h"
 
 #import "FtpHandler.h"
+#import "avContactModel.h"
+
+#import "XMPPRoster+AddUser.h"
 
 
 //TODO Gercek resim database e kaydedildikten sonra klasorden silinecek
@@ -386,6 +389,92 @@
         [self.ftpHandler downloadFile:remoteFileName inFolder:localDir withType:@"audio" fromUser:fromUser];
     }
     
+}
+
+
+
+
+//////////Adress Book XMPP Entegrasyonu////////////////////////
+
+-(NSArray *) queryAllRoster
+{
+    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPUserCoreDataStorageObject"];
+    NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:@"displayName" ascending:YES];
+    NSArray *sortDescriptors = [NSArray arrayWithObject:descriptor];
+    
+    
+    request.sortDescriptors = sortDescriptors;
+    
+    NSError *error;
+    NSArray *matches = [[self getManagedObjectRoster] executeFetchRequest:request error:&error];
+    return matches;
+}
+
+-(NSString*) convertPhoneNumberToInternational:(NSString*)originalPhone
+{
+    NSString *result = originalPhone;
+    if (originalPhone.length == 11 && [originalPhone characterAtIndex:0] == '0')
+    {
+        result = [NSString stringWithFormat:@"+9%@",originalPhone]; //Burasi gercek ulke kodu ile degisecek
+    }
+    else if ([originalPhone rangeOfString:@")"].location > 0) 
+    {
+        /*
+        result = [originalPhone stringByReplacingOccurrencesOfString:@")" withString:@""];
+        result = [result stringByReplacingOccurrencesOfString:@"(" withString:@""];
+        result = [result stringByReplacingOccurrencesOfString:@" " withString:@""];
+        return [self convertPhoneNumberToInternational:result];
+         */
+    }
+        
+    return result;
+}
+
+-(int) indexOfContactInRoster:(avContactModel*)contact inSearchArray:(NSArray*)searchArr
+{
+    int result=-1;
+    for (int i=0;i<[searchArr count];i++) {
+        XMPPUserCoreDataStorageObject *user = [searchArr objectAtIndex:i];
+        if (user) {
+            NSRange userBaseRange = [user.jidStr rangeOfString:@"@"];
+            NSString *baseUserName = [user.jidStr substringToIndex:userBaseRange.location];
+            for (int j=0;j<[contact.phoneNumbers count];j++) {
+                NSString *phoneNo = [contact.phoneNumbers objectAtIndex:j];
+                phoneNo = [self convertPhoneNumberToInternational:phoneNo];
+                NSLog(@"Roster Phone: %@ Contact Phone: %@",baseUserName,phoneNo);
+                if ([phoneNo isEqualToString:baseUserName]) {
+                    return i;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+-(void) syncContacts:(NSArray *)contacts
+{
+    NSArray *queryResults = [self queryAllRoster];
+    
+    for (avContactModel *contact in contacts) 
+    {
+        if (contact.isAvatarUser) {
+            if ([self indexOfContactInRoster:contact inSearchArray:queryResults] > -1) {
+                int indexOfUserInDB = [self indexOfContactInRoster:contact inSearchArray:queryResults];
+                NSLog(@"Eslesme Var: %d",indexOfUserInDB);
+            }
+            else {
+                NSString *phoneNo = [contact.phoneNumbers objectAtIndex:0]; //Burasi daha duzgun bir sekilde duzenlenecek
+                phoneNo = [self convertPhoneNumberToInternational:phoneNo];
+                NSString *newRosterStr = [NSString stringWithFormat:@"%@@%@",phoneNo,self.hostname];
+                if (![newRosterStr isEqualToString:self.username]) {
+                    XMPPJID *newRosterJid = [XMPPJID jidWithString:newRosterStr];
+                    [self.xmppRoster addUser:newRosterJid withNickname:contact.fullName withSubscriptionType:@"both"];
+                }
+
+            }
+
+        }
+    }
 }
 
 
@@ -815,26 +904,6 @@
             
             NSString *thumb = [self getThumbnailFileNameFromFileName:fileName];
             NSString *remoteThumb = [self getThumbnailFileNameFromFileName:remoteFileName];
-           
-            /*
-            NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"XMPPMessageCoreDataObject"];
-            request.predicate = [NSPredicate predicateWithFormat:@"body = %@ AND whoOwns.jidStr = %@",thumb,user.jidStr];
-            //NSSortDescriptor *sortDesc = [NSSortDescriptor sortDescriptorWithKey:@"displayName" ascending:YES];
-            //request.sortDescriptors = [NSArray arrayWithObject:sortDesc];
-            
-            NSError *error;
-            NSArray *matches = [self.getmanagedObjectMessage executeFetchRequest:request error:&error];
-            
-            if ([matches count] > 0) {
-                XMPPMessageCoreDataObject *messageCoreData = [matches lastObject];
-                messageCoreData.actualData = [NSData dataWithContentsOfFile:fileName];
-                
-                //NSLog(@"Sending Remote Thumbnail: %@",remoteThumb);
-                NSLog(@"Sending Remote File: %@",remoteFileName);
-                [self sendFileMessage:remoteThumb withActualData:remoteFileName toAdress:toUserName withType:@"image"];
-                NSLog(@"Gercek Resim Thumbnailin Oldugu Kayida Eklendi");
-            }
-             */
             
             [self insertActualDataToUploadedMessage:thumb withActualLocalFile:fileName andActualRemoteFile:remoteFileName includingRemoteThumb:remoteThumb toUserName:user.jidStr andType:@"image"];
             

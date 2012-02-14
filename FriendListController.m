@@ -54,6 +54,7 @@
                 NSLog(@"Error Performing Fetch:%@",error);
                 //DDLogError(@"Error performing fetch: %@", error);
             }
+            NSLog(@"Configure Done");
         }
     }
 }
@@ -61,6 +62,7 @@
 
 - (void)controllerDidChangeContent:(NSFetchedResultsController *)controller
 {
+    NSLog(@"Fetch Content Did Change");
 	[[self tableView] reloadData];
 }
 

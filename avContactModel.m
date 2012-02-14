@@ -21,15 +21,18 @@
 @synthesize abId = _abId;
 @synthesize fullName = _fullName;
 
-
 -(NSString *)fullName
 {
+    if (_lastName.length < 1) {
+        return _firstName;
+    }
+    
     return [NSString stringWithFormat:@"%@ %@", _firstName, _lastName];
 }
 
 -(BOOL)isAvatarUser
 {
-    return YES;
+    return _isAvatarUser;
 }
 
 +(avContactModel*) contactFromRecord: (ABRecordRef) rec
@@ -65,12 +68,14 @@
     
     person.firstName = name;
     person.lastName = lastName;   
+    person.isAvatarUser = NO;
     return person;
 }
 
 +(NSArray*) all
 {
     NSMutableArray* contactList = [NSMutableArray array];
+    
 
     ABAddressBookRef addressBook = ABAddressBookCreate();
     CFArrayRef people = ABAddressBookCopyArrayOfAllPeople(addressBook);

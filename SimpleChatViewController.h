@@ -11,19 +11,11 @@
 #import "FriendListController.h"
 #import "XMPPHandler.h"
 
-@interface SimpleChatViewController : UIViewController<XMPPHandlerDelegate,UITextFieldDelegate>
+@interface SimpleChatViewController : UIViewController<XMPPHandlerDelegate>
 
 
 
 @property int isInitializingFirstTime;
-
-
-@property (weak, nonatomic) IBOutlet UITextField *username;
-
-@property (weak, nonatomic) IBOutlet UITextField *password;
-
-@property (nonatomic,strong) NSString *uName;
-@property (nonatomic,strong) NSString *pass;
 
 @property (nonatomic,strong) XMPPHandler *xmppHandler;
 

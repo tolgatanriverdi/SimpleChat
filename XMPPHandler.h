@@ -32,6 +32,7 @@
 -(void) disconnect;
 -(void) transferFile:(NSString *)filePath fromUser:(XMPPJID *)userJid toUser:(NSString *)to withType:(NSString*)type;
 -(XMPPJID*) getMyJid;
+-(void) syncContacts:(NSArray *)contacts;
 
 
 - (NSManagedObjectContext *)getManagedObjectRoster;
